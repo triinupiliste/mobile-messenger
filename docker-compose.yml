@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: messenger_user
+      POSTGRES_PASSWORD: messenger_password
+      POSTGRES_DB: messenger_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=messenger_user
+      - DB_PASSWORD=messenger_password
+      - DB_NAME=messenger_db
+      - JWT_SECRET=super_secret_messenger_jwt_key_2026
+      - ENCRYPTION_KEY=32_byte_hex_or_string_secret_key_here!!
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:

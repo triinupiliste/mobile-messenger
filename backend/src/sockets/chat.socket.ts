@@ -1,0 +1,102 @@
+import { Server, Socket } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import { MessageRepository } from '../repositories/message.repository';
+
+export function registerChatHandlers(io: Server) {
+    // 1. Socket Authentication Middleware with explicit 'next' type
+    io.use((socket: Socket, next: (err?: any) => void) => { // <-- Added explicit type here
+        const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+        
+        if (!token) {
+            return next(new Error('Authentication error: Token missing'));
+        }
+
+        jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err: any, decoded: any) => {
+            if (err) {
+                return next(new Error('Authentication error: Invalid or expired token'));
+            }
+            socket.data.user = decoded; 
+            next();
+        });
+    });
+
+    // 2. Connection Event Listener
+    io.on('connection', (socket: Socket) => {
+        const userId = socket.data.user.userId;
+        console.log(`🔌 User connected via WebSocket: ${userId}`);
+
+        // Join a personal room for direct notifications (e.g., invites)
+        socket.join(userId);
+
+        // Join a specific chat room
+        socket.on('join_chat', (chatId: string) => {
+            socket.join(chatId);
+            console.log(`User ${userId} joined chat room: ${chatId}`);
+        });
+
+        // Handle sending messages (Text, Images, Videos, Audio)
+        socket.on('send_message', async (data: { chatId: string; content?: string; mediaUrl?: string; mediaType?: any }) => {
+            try {
+                const { chatId, content, mediaUrl, mediaType } = data;
+                
+                // Save message to database and encrypt content
+                const savedMessage = await MessageRepository.saveMessage(
+                    chatId, 
+                    userId, 
+                    content, 
+                    mediaUrl, 
+                    mediaType || 'text'
+                );
+                
+                // Broadcast the message to all participants in the chat room
+                io.to(chatId).emit('receive_message', savedMessage);
+            } catch (error) {
+                socket.emit('error_feedback', { message: 'Failed to send message.' });
+            }
+        });
+
+        // Handle Typing Indicators (Real-time typing cues)
+        socket.on('typing', (data: { chatId: string; isTyping: boolean }) => {
+            socket.to(data.chatId).emit('user_typing', { userId, isTyping: data.isTyping });
+        });
+
+        // Handle Message Status Updates (Delivered / Read indicators)
+        socket.on('update_message_status', async (data: { messageId: string; chatId: string; status: 'delivered' | 'read' }) => {
+            try {
+                await MessageRepository.updateMessageStatus(data.messageId, data.status);
+                io.to(data.chatId).emit('message_status_updated', { messageId: data.messageId, status: data.status });
+            } catch (error) {
+                console.error('Failed to update message status:', error);
+            }
+        });
+
+        // Handle Editing Messages
+        socket.on('edit_message', async (data: { messageId: string; chatId: string; newContent: string }) => {
+            try {
+                const updatedMessage = await MessageRepository.editMessage(data.messageId, userId, data.newContent);
+                if (updatedMessage) {
+                    io.to(data.chatId).emit('message_edited', updatedMessage);
+                }
+            } catch (error) {
+                socket.emit('error_feedback', { message: 'Failed to edit message.' });
+            }
+        });
+
+        // Handle Deleting Messages
+        socket.on('delete_message', async (data: { messageId: string; chatId: string }) => {
+            try {
+                const success = await MessageRepository.deleteMessage(data.messageId, userId);
+                if (success) {
+                    io.to(data.chatId).emit('message_deleted', { messageId: data.messageId });
+                }
+            } catch (error) {
+                socket.emit('error_feedback', { message: 'Failed to delete message.' });
+            }
+        });
+
+        // Disconnection handler
+        socket.on('disconnect', () => {
+            console.log(`🔌 User disconnected: ${userId}`);
+        });
+    });
+}

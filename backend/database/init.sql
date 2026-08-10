@@ -1,0 +1,67 @@
+-- Enable UUID extension for secure unique identifiers
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. Users Table (Handles Registration, Auth, & Unique Constraints)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    is_verified BOOLEAN DEFAULT FALSE,
+    verification_token VARCHAR(255),
+    reset_token VARCHAR(255),
+    reset_token_expires TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for fast search and unique lookups
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_username ON users(username);
+
+-- 2. Profiles Table (Handles Profile Picture, About Me, and Encryption)
+CREATE TABLE profiles (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    avatar_url TEXT, -- Can store path or encrypted URL
+    about_me TEXT -- Stored as encrypted text payload
+);
+
+-- 3. Invites Table (Handles Chat Invitations)
+CREATE TABLE invites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'accepted', 'declined'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Chats Table (Base entity for conversations)
+CREATE TABLE chats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. Chat Participants (Manages 1-on-1 or group memberships, archiving, and muting per user)
+CREATE TABLE chat_participants (
+    chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    is_archived BOOLEAN DEFAULT FALSE,
+    is_muted BOOLEAN DEFAULT FALSE, -- Satisfies the chat muting requirement
+    PRIMARY KEY (chat_id, user_id)
+);
+
+-- 6. Messages Table (Handles Text, Media/Audio, Statuses, Editing, Deleting, and Encryption)
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
+    sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT, -- Stored as encrypted text payload
+    media_url TEXT, -- Path for images, videos, or audio files (size-limited at app level)
+    media_type VARCHAR(50), -- 'image', 'video', 'audio', 'text'
+    status VARCHAR(20) DEFAULT 'sent', -- 'sent', 'delivered', 'read'
+    is_edited BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index to sort and query chat list messages quickly
+CREATE INDEX idx_messages_chat_created ON messages(chat_id, created_at DESC);
