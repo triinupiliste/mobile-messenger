@@ -25,21 +25,22 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MessageProvider()),
         ChangeNotifierProvider(create: (_) => InviteProvider()),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          return MaterialApp(
-            title: 'Mobile Messenger',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            home: authProvider.isLoading
-                ? const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  )
-                : authProvider.isAuthenticated
-                    ? const HomeScreen()
-                    : const LoginScreen(),
-          );
-        },
+      child: MaterialApp(
+        title: 'Mobile Messenger',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            if (authProvider.isLoading) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            return authProvider.isAuthenticated
+                ? const HomeScreen()
+                : const LoginScreen();
+          },
+        ),
       ),
     );
   }

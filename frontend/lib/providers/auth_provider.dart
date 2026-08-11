@@ -15,8 +15,12 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> checkAuthStatus() async {
-    final token = await StorageService.getToken();
-    _isAuthenticated = token != null;
+    try {
+      final token = await StorageService.getToken();
+      _isAuthenticated = token != null;
+    } catch (e) {
+      _isAuthenticated = false;
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -34,6 +38,9 @@ class AuthProvider with ChangeNotifier {
     try {
       final res = await ApiService.login(email, password);
       if (res['token'] != null) {
+        // CRITICAL: Save the token securely so it persists across app restarts!
+        await StorageService.setToken(res['token']);
+        
         _isAuthenticated = true;
         notifyListeners();
         return null;
@@ -50,18 +57,29 @@ class AuthProvider with ChangeNotifier {
     }
     try {
       final res = await ApiService.register(username, email, password);
-      if (res['error'] != null) {
+      if (res != null && res['error'] != null) {
         return res['error'];
       }
       return null;
     } catch (e) {
-      return 'Network error occurred during registration.';
+      print('Registration Exception: $e'); // <-- This prints the exact cause in your terminal
+      return 'Network error occurred during registration: $e';
     }
   }
 
   Future<void> logout() async {
-    await StorageService.clearToken();
-    SocketService.disconnect();
+    try {
+      await StorageService.clearToken();
+    } catch (e) {
+      print('Error clearing token: $e');
+    }
+
+    try {
+      SocketService.disconnect();
+    } catch (e) {
+      print('Error disconnecting socket: $e');
+    }
+
     _isAuthenticated = false;
     notifyListeners();
   }

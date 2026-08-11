@@ -4,7 +4,7 @@ import 'storage_service.dart';
 
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator or Web
-  static const String baseUrl = 'http://localhost:5000/api';
+  static const String baseUrl = 'http://127.0.0.1:5000/api';
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await StorageService.getToken();
