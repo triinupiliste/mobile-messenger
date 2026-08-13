@@ -15,10 +15,10 @@ class InviteModel {
 
   factory InviteModel.fromJson(Map<String, dynamic> json) {
     return InviteModel(
-      inviteId: json['invite_id'] ?? '',
+      inviteId: json['id'] ?? json['invite_id'] ?? '',
       senderId: json['sender_id'] ?? '',
-      senderUsername: json['sender_username'] ?? 'User',
-      senderAvatar: json['sender_avatar'],
+      senderUsername: json['sender']?['username'] ?? json['sender_username'] ?? 'User',
+      senderAvatar: json['sender']?['avatar_url'] ?? json['sender_avatar'],
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),

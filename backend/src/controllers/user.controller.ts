@@ -30,17 +30,27 @@ export class UserController {
 
     static async searchUsers(req: Request, res: Response): Promise<void> {
         try {
-            const currentUserId = (req as any).user.userId;
+            // Safely check both 'userId' and 'id' from the token payload
+            const tokenUser = (req as any).user;
+            const currentUserId = tokenUser?.userId ?? tokenUser?.id;
             const searchTerm = req.query.q as string;
+
+            console.log('🔍 Search Debug -> currentUserId:', currentUserId, '| searchTerm:', searchTerm);
 
             if (!searchTerm) {
                 res.status(400).json({ error: 'Search query parameter "q" is required.' });
                 return;
             }
 
+            if (!currentUserId) {
+                res.status(401).json({ error: 'Unauthorized user identification.' });
+                return;
+            }
+
             const users = await UserRepository.searchUsers(searchTerm, currentUserId);
             res.status(200).json(users);
         } catch (error) {
+            console.error('Search error:', error);
             res.status(500).json({ error: 'Failed to search users.' });
         }
     }

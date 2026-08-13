@@ -9,14 +9,29 @@ export class UserRepository {
         return result.rows[0] || null;
     }
 
-    static async createUser(email: string, username: string, passwordHash: string): Promise<User> {
+    static async createUser(
+        email: string,
+        username: string,
+        passwordHash: string,
+        verificationToken: string,
+        verificationTokenExpires: Date,
+    ): Promise<User> {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
             const userQuery = `
-                INSERT INTO users (email, username, password_hash) 
-                VALUES ($1, $2, $3) RETURNING *`;
-            const userResult = await client.query(userQuery, [email, username, passwordHash]);
+                INSERT INTO users (
+                    email, username, password_hash,
+                    verification_token, verification_token_expires
+                )
+                VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+            const userResult = await client.query(userQuery, [
+                email,
+                username,
+                passwordHash,
+                verificationToken,
+                verificationTokenExpires,
+            ]);
             const user: User = userResult.rows[0];
 
             // Create blank profile for the new user
@@ -32,7 +47,12 @@ export class UserRepository {
     }
 
     static async getProfile(userId: string): Promise<Profile | null> {
-        const query = 'SELECT * FROM profiles WHERE user_id = $1';
+        const query = `
+            SELECT u.id, u.id AS user_id, u.email, u.username,
+                   p.avatar_url, p.about_me
+            FROM users u
+            LEFT JOIN profiles p ON u.id = p.user_id
+            WHERE u.id = $1`;
         const result = await pool.query(query, [userId]);
         if (!result.rows[0]) return null;
 
@@ -62,10 +82,45 @@ export class UserRepository {
 
     static async searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
         const query = `
-            SELECT id, email, username, created_at FROM users 
-            WHERE (email ILIKE $1 OR username ILIKE $1) AND id != $2
+            SELECT u.id, u.email, u.username, u.created_at, p.avatar_url
+            FROM users u
+            LEFT JOIN profiles p ON u.id = p.user_id
+            WHERE (u.email ILIKE $1 OR u.username ILIKE $1) AND u.id != $2
+            ORDER BY u.username
             LIMIT 10`;
         const result = await pool.query(query, [`%${searchTerm}%`, currentUserId]);
         return result.rows;
+    }
+
+    static async existsById(userId: string): Promise<boolean> {
+        const result = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+        return result.rowCount === 1;
+    }
+
+    static async verifyEmail(verificationToken: string): Promise<User | null> {
+        const query = `
+            UPDATE users
+            SET is_verified = TRUE,
+                verification_token = NULL,
+                verification_token_expires = NULL
+            WHERE verification_token = $1
+              AND verification_token_expires > CURRENT_TIMESTAMP
+              AND is_verified = FALSE
+            RETURNING *`;
+        const result = await pool.query(query, [verificationToken]);
+        return result.rows[0] || null;
+    }
+
+    static async setVerificationToken(
+        userId: string,
+        verificationToken: string,
+        verificationTokenExpires: Date,
+    ): Promise<void> {
+        await pool.query(
+            `UPDATE users
+             SET verification_token = $2, verification_token_expires = $3
+             WHERE id = $1 AND is_verified = FALSE`,
+            [userId, verificationToken, verificationTokenExpires],
+        );
     }
 }

@@ -14,19 +14,44 @@ export class InviteRepository {
     static async findExistingInvite(senderId: string, receiverId: string): Promise<Invite | null> {
         const query = `
             SELECT * FROM invites 
-            WHERE (sender_id = $1 AND receiver_id = $2) 
-               OR (sender_id = $2 AND receiver_id = $1)`;
+            WHERE ((sender_id = $1 AND receiver_id = $2) 
+                OR (sender_id = $2 AND receiver_id = $1))
+              AND status IN ('pending', 'accepted')`;
         const result = await pool.query(query, [senderId, receiverId]);
         return result.rows[0] || null;
     }
 
     static async getPendingInvitesForUser(userId: string) {
         const query = `
-            SELECT i.id, i.sender_id, u.username AS sender_username, p.avatar_url AS sender_avatar, i.created_at
+            SELECT i.id, i.sender_id, i.status, i.created_at,
+                   json_build_object(
+                       'id', u.id,
+                       'username', u.username,
+                       'email', u.email,
+                       'avatar_url', p.avatar_url
+                   ) AS sender
             FROM invites i
             JOIN users u ON i.sender_id = u.id
             LEFT JOIN profiles p ON u.id = p.user_id
             WHERE i.receiver_id = $1 AND i.status = 'pending'
+            ORDER BY i.created_at DESC`;
+        const result = await pool.query(query, [userId]);
+        return result.rows;
+    }
+
+    static async getOutgoingInvitesForUser(userId: string) {
+        const query = `
+            SELECT i.id, i.receiver_id, i.status, i.created_at,
+                   json_build_object(
+                       'id', u.id,
+                       'username', u.username,
+                       'email', u.email,
+                       'avatar_url', p.avatar_url
+                   ) AS recipient
+            FROM invites i
+            JOIN users u ON i.receiver_id = u.id
+            LEFT JOIN profiles p ON u.id = p.user_id
+            WHERE i.sender_id = $1 AND i.status = 'pending'
             ORDER BY i.created_at DESC`;
         const result = await pool.query(query, [userId]);
         return result.rows;

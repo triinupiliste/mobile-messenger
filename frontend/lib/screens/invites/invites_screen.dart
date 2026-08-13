@@ -1,76 +1,183 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 
 class InvitesScreen extends StatefulWidget {
   const InvitesScreen({super.key});
 
   @override
-  State<InvitesScreen> createState() => _InvitesScreenState();
+  State<InvitesScreen> createState() => InvitesScreenState();
 }
 
-class _InvitesScreenState extends State<InvitesScreen> {
-  // Mock pending invites list (Will be populated via ApiService / InviteProvider)
-  final List<Map<String, dynamic>> _pendingInvites = [
-    {'invite_id': '1', 'sender_username': 'alex_dev', 'created_at': '2026-08-10'},
-    {'invite_id': '2', 'sender_username': 'sarah_chat', 'created_at': '2026-08-09'},
-  ];
+class InvitesScreenState extends State<InvitesScreen> {
+  List<dynamic> _incoming = [];
+  List<dynamic> _outgoing = [];
+  bool _isLoading = true;
 
-  void _respondToInvite(String inviteId, bool accept) {
-    setState(() {
-      _pendingInvites.removeWhere((invite) => invite['invite_id'] == inviteId);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(accept ? 'Invitation accepted!' : 'Invitation declined.')),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadInvites();
+  }
+
+  Future<void> _loadInvites() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await ApiService.getInvitations();
+      if (!mounted) return;
+      setState(() {
+        _incoming = data['incoming'] ?? [];
+        _outgoing = data['outgoing'] ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load invitations: $e')),
+      );
+    }
+  }
+
+  Future<void> refresh() => _loadInvites();
+
+  Future<void> _respond(String inviteId, String status) async {
+    try {
+      await ApiService.respondToInvite(inviteId, status);
+      _loadInvites();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Invitation $status successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Chat Invitations')),
-      body: _pendingInvites.isEmpty
-          ? const Center(
-              child: Text(
-                'No pending invitations.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          title: const Text('Chat Invitations',
+              style: TextStyle(color: Colors.white)),
+          iconTheme: const IconThemeData(color: Colors.white),
+          bottom: const TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white60,
+            indicatorColor: Colors.white,
+            indicatorWeight: 3,
+            tabs: [
+              Tab(text: 'Incoming'),
+              Tab(text: 'Outgoing'),
+            ],
+          ),
+        ),
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary))
+            : TabBarView(
+                children: [
+                  // Incoming Tab
+                  _incoming.isEmpty
+                      ? const Center(
+                          child: Text('No incoming invitations',
+                              style: TextStyle(color: AppColors.textSecondary)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _incoming.length,
+                          itemBuilder: (context, index) {
+                            final invite = _incoming[index];
+                            final sender = invite['sender'] ?? {};
+                            return Card(
+                              color: AppColors.surface,
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: AppColors.primary,
+                                  child:
+                                      Icon(Icons.person, color: Colors.white),
+                                ),
+                                title: Text(sender['username'] ?? 'User',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary)),
+                                subtitle: Text(sender['email'] ?? '',
+                                    style: const TextStyle(
+                                        color: AppColors.textSecondary)),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.check,
+                                          color: Colors.green),
+                                      onPressed: () => _respond(
+                                          invite['id'] ?? invite['_id'],
+                                          'accepted'),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close,
+                                          color: AppColors.error),
+                                      onPressed: () => _respond(
+                                          invite['id'] ?? invite['_id'],
+                                          'declined'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                  // Outgoing Tab
+                  _outgoing.isEmpty
+                      ? const Center(
+                          child: Text('No outgoing invitations',
+                              style: TextStyle(color: AppColors.textSecondary)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _outgoing.length,
+                          itemBuilder: (context, index) {
+                            final invite = _outgoing[index];
+                            final recipient = invite['recipient'] ?? {};
+                            return Card(
+                              color: AppColors.surface,
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: AppColors.textSecondary,
+                                  child:
+                                      Icon(Icons.person, color: Colors.white),
+                                ),
+                                title: Text(recipient['username'] ?? 'User',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary)),
+                                subtitle: Text(recipient['email'] ?? '',
+                                    style: const TextStyle(
+                                        color: AppColors.textSecondary)),
+                                trailing: Chip(
+                                  label: Text(
+                                      (invite['status'] ?? 'pending')
+                                          .toString(),
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.white)),
+                                  backgroundColor: AppColors.secondary,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ],
               ),
-            )
-          : ListView.builder(
-              itemCount: _pendingInvites.length,
-              itemBuilder: (context, index) {
-                final invite = _pendingInvites[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.primary.withOpacity(0.2),
-                      child: Text(
-                        invite['sender_username'][0].toUpperCase(),
-                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    title: Text(invite['sender_username'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Wants to start a conversation', style: TextStyle(color: AppColors.textSecondary)),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
-                          onPressed: () => _respondToInvite(invite['invite_id'], true),
-                          tooltip: 'Accept',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
-                          onPressed: () => _respondToInvite(invite['invite_id'], false),
-                          tooltip: 'Decline',
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+      ),
     );
   }
 }

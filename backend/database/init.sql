@@ -9,6 +9,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE,
     verification_token VARCHAR(255),
+    verification_token_expires TIMESTAMP,
     reset_token VARCHAR(255),
     reset_token_expires TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -17,6 +18,8 @@ CREATE TABLE users (
 -- Indexes for fast search and unique lookups
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_verification_token ON users(verification_token)
+    WHERE verification_token IS NOT NULL;
 
 -- 2. Profiles Table (Handles Profile Picture, About Me, and Encryption)
 CREATE TABLE profiles (

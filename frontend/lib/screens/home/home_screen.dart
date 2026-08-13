@@ -14,14 +14,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  final _invitesKey = GlobalKey<InvitesScreenState>();
 
-  // List of main application tabs
-  final List<Widget> _screens = [
+  late final List<Widget> _screens = [
     const ChatListScreen(),
-    const InvitesScreen(),
-    const SearchScreen(),
+    InvitesScreen(key: _invitesKey),
+    SearchScreen(onInviteSent: _refreshInvites),
     const ProfileScreen(),
   ];
+
+  Future<void> _refreshInvites() async {
+    await _invitesKey.currentState?.refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +36,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
+        onTap: (index) async {
           setState(() {
             _currentIndex = index;
           });
+          if (index == 1) {
+            await _refreshInvites();
+          }
         },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,

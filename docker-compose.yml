@@ -26,6 +26,10 @@ services:
       - DB_NAME=messenger_db
       - JWT_SECRET=super_secret_messenger_jwt_key_2026
       - ENCRYPTION_KEY=32_byte_hex_or_string_secret_key_here!!
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:5000/api}
+      - BREVO_API_KEY=${BREVO_API_KEY:-}
+      - MAIL_FROM=${MAIL_FROM:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Mobile Messenger}
     depends_on:
       - postgres
 

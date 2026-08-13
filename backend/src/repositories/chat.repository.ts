@@ -44,7 +44,7 @@ export class ChatRepository {
             JOIN chat_participants other_cp ON cp.chat_id = other_cp.chat_id AND other_cp.user_id != $1
             JOIN users u ON other_cp.user_id = u.id
             LEFT JOIN profiles p ON u.id = p.user_id
-            LEFT LATERAL (
+            LEFT JOIN LATERAL (
                 SELECT content, media_type, status, created_at 
                 FROM messages 
                 WHERE chat_id = cp.chat_id AND is_deleted = FALSE 

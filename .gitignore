@@ -1,0 +1,10 @@
+# Environment secrets
+.env
+backend/.env
+
+# Backend generated/install artifacts
+backend/dist/
+backend/node_modules/
+
+# Logs
+*.log

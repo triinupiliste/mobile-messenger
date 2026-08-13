@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { InviteRepository } from '../repositories/invite.repository';
 import { ChatRepository } from '../repositories/chat.repository';
+import { UserRepository } from '../repositories/user.repository';
 
 export class InviteController {
     static async sendInvite(req: Request, res: Response): Promise<void> {
@@ -8,8 +9,18 @@ export class InviteController {
             const senderId = (req as any).user.userId;
             const { receiverId } = req.body;
 
+            if (typeof receiverId !== 'string' || !receiverId.trim()) {
+                res.status(400).json({ error: 'A valid receiverId is required.' });
+                return;
+            }
+
             if (senderId === receiverId) {
                 res.status(400).json({ error: 'You cannot invite yourself.' });
+                return;
+            }
+
+            if (!await UserRepository.existsById(receiverId)) {
+                res.status(404).json({ error: 'The selected user no longer exists.' });
                 return;
             }
 
@@ -29,8 +40,11 @@ export class InviteController {
     static async getPendingInvites(req: Request, res: Response): Promise<void> {
         try {
             const userId = (req as any).user.userId;
-            const invites = await InviteRepository.getPendingInvitesForUser(userId);
-            res.status(200).json(invites);
+            const [incoming, outgoing] = await Promise.all([
+                InviteRepository.getPendingInvitesForUser(userId),
+                InviteRepository.getOutgoingInvitesForUser(userId),
+            ]);
+            res.status(200).json({ incoming, outgoing });
         } catch (error) {
             res.status(500).json({ error: 'Failed to fetch pending invites.' });
         }

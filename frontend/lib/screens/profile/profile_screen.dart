@@ -15,6 +15,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _aboutMeController = TextEditingController();
   String? _avatarUrl;
   File? _selectedAvatarFile;
@@ -32,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = await ApiService.getProfile();
       setState(() {
         _usernameController.text = profile['username'] ?? '';
+        _emailController.text = profile['email'] ?? '';
         _aboutMeController.text = profile['about_me'] ?? '';
         _avatarUrl = profile['avatar_url'];
         _isLoading = false;
@@ -51,9 +53,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _saveProfile() async {
     setState(() => _isSaving = true);
     try {
-      // Mock network save delay
-      await Future.delayed(const Duration(seconds: 1)); 
-      
+      await ApiService.updateProfile(
+        avatarUrl: _avatarUrl,
+        aboutMe: _aboutMeController.text.trim(),
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully!')),
@@ -75,6 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _usernameController.dispose();
+    _emailController.dispose();
     _aboutMeController.dispose();
     super.dispose();
   }
@@ -82,10 +87,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
+      return const Scaffold(
+          body: Center(
+              child: CircularProgressIndicator(color: AppColors.primary)));
     }
-
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Profile')),
@@ -110,7 +115,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 32),
             TextField(
               controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person)),
+              readOnly: true,
+              decoration: const InputDecoration(
+                  labelText: 'Username', prefixIcon: Icon(Icons.person)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _emailController,
+              readOnly: true,
+              decoration: const InputDecoration(
+                  labelText: 'Email', prefixIcon: Icon(Icons.email)),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -130,7 +144,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: _isSaving ? null : _saveProfile,
               child: _isSaving
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  : const Text('Save Changes',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
@@ -140,9 +156,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 minimumSize: const Size(double.infinity, 50),
               ),
               icon: const Icon(Icons.logout),
-              label: const Text('Log Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              label: const Text('Log Out',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               onPressed: () async {
-                await authProvider.logout();
+                await context.read<AuthProvider>().logout();
               },
             ),
           ],

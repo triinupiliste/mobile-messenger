@@ -4,8 +4,9 @@ import { verifyToken } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.post('/send', verifyToken, InviteController.sendInvite);
-router.get('/pending', verifyToken, InviteController.getPendingInvites);
-router.post('/respond', verifyToken, InviteController.respondToInvite);
+// All invite routes require authentication
+router.post('/', verifyToken, InviteController.sendInvite);           // POST /api/invites
+router.get('/', verifyToken, InviteController.getPendingInvites);     // GET /api/invites
+router.post('/respond', verifyToken, InviteController.respondToInvite); // POST /api/invites/respond
 
 export default router;
