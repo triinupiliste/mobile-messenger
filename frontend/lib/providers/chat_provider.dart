@@ -48,15 +48,19 @@ class ChatProvider with ChangeNotifier {
         final index = _chats.indexWhere((c) => c.chatId == chatId);
 
         if (index != -1) {
-          // Update last message snippet and timestamp for the chat list item
+          // Update last message snippet and timestamp for the chat list item.
+          // Unread count is left as-is here; it's refreshed accurately via fetchChats().
           _chats[index] = ChatModel(
             chatId: _chats[index].chatId,
             contactName: _chats[index].contactName,
             contactAvatar: _chats[index].contactAvatar,
-            lastMessage: data['content'] ?? 'Media attachment',
+            lastMessage: data['content'],
+            lastMessageType: data['media_type'] ?? data['mediaType'],
             lastMessageTime: data['created_at'] != null 
                 ? DateTime.parse(data['created_at']) 
                 : DateTime.now(),
+            lastMessageSenderId: data['sender_id'],
+            unreadCount: _chats[index].unreadCount,
             isArchived: _chats[index].isArchived,
           );
           _sortChats();

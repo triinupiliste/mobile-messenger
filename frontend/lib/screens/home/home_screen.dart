@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../theme/app_colors.dart';
 import '../chat/chat_list_screen.dart';
 import '../invites/invites_screen.dart';
@@ -40,6 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _currentIndex = index;
           });
+          if (index == 0) {
+            await context.read<ChatProvider>().fetchChats();
+          }
           if (index == 1) {
             await _refreshInvites();
           }

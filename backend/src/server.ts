@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'http';
+import path from 'path';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -8,8 +9,10 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import inviteRoutes from './routes/invite.routes';
 import chatRoutes from './routes/chat.routes';
+import mediaRoutes from './routes/media.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { registerChatHandlers } from './sockets/chat.socket';
+import { setIO } from './sockets/socket.instance';
 
 dotenv.config();
 
@@ -21,16 +24,23 @@ const io = new Server(server, {
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
     }
 });
+setIO(io);
+
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded media (images, videos, voice notes) statically
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/media', mediaRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -45,6 +47,10 @@ class InvitesScreenState extends State<InvitesScreen> {
     try {
       await ApiService.respondToInvite(inviteId, status);
       _loadInvites();
+      if (status == 'accepted' && mounted) {
+        // A new chat was created on the backend; refresh the chat list so it appears immediately.
+        context.read<ChatProvider>().fetchChats();
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Invitation $status successfully!')),

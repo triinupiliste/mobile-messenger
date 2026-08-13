@@ -5,6 +5,7 @@ backend/.env
 # Backend generated/install artifacts
 backend/dist/
 backend/node_modules/
+backend/uploads/
 
 # Logs
 *.log

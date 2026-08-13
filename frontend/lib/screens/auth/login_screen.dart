@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,6 +31,16 @@ class _LoginScreenState extends State<LoginScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const RegisterScreen()),
+    );
+    if (!mounted) return;
+    _clearLoginFeedback();
+  }
+
+  Future<void> _openForgotPassword() async {
+    _clearLoginFeedback();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
     );
     if (!mounted) return;
     _clearLoginFeedback();
@@ -151,7 +162,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   validator: (value) =>
                       value!.isEmpty ? 'Please enter your password' : null,
                 ),
-                const SizedBox(height: 24),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _openForgotPassword,
+                    child: const Text('Forgot password?',
+                        style: TextStyle(color: Color(0xFF8D99AE))),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   child: _isLoading

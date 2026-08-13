@@ -39,6 +39,17 @@ export class MessageRepository {
         await pool.query(query, [messageId, status]);
     }
 
+    static async markChatMessagesRead(chatId: string, userId: string): Promise<void> {
+        const query = `
+            UPDATE messages 
+            SET status = 'read' 
+            WHERE chat_id = $1 
+              AND sender_id != $2 
+              AND status != 'read' 
+              AND is_deleted = FALSE`;
+        await pool.query(query, [chatId, userId]);
+    }
+
     static async editMessage(messageId: string, senderId: string, newContent: string): Promise<Message | null> {
         const encryptedContent = encryptText(newContent);
         const query = `
@@ -52,12 +63,13 @@ export class MessageRepository {
         return msg || null;
     }
 
-    static async deleteMessage(messageId: string, senderId: string): Promise<boolean> {
+    static async deleteMessage(messageId: string, senderId: string): Promise<Message | null> {
         const query = `
             UPDATE messages 
             SET is_deleted = TRUE, content = NULL, media_url = NULL 
-            WHERE id = $1 AND sender_id = $2`;
+            WHERE id = $1 AND sender_id = $2 
+            RETURNING *`;
         const result = await pool.query(query, [messageId, senderId]);
-        return (result.rowCount ?? 0) > 0;
+        return result.rows[0] || null;
     }
 }

@@ -4,9 +4,10 @@ import jwt from 'jsonwebtoken';
 import { createHash, randomBytes } from 'crypto';
 import { UserRepository } from '../repositories/user.repository';
 import { validatePasswordStrength, isValidEmail } from '../utils/validator.util';
-import { sendVerificationEmail } from '../services/email.service';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service';
 
 const VERIFICATION_TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
+const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 function createVerificationToken(): { rawToken: string; tokenHash: string; expiresAt: Date } {
     const rawToken = randomBytes(32).toString('hex');
@@ -17,9 +18,36 @@ function createVerificationToken(): { rawToken: string; tokenHash: string; expir
     };
 }
 
+function createResetToken(): { rawToken: string; tokenHash: string; expiresAt: Date } {
+    const rawToken = randomBytes(32).toString('hex');
+    return {
+        rawToken,
+        tokenHash: createHash('sha256').update(rawToken).digest('hex'),
+        expiresAt: new Date(Date.now() + RESET_TOKEN_LIFETIME_MS),
+    };
+}
+
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function verificationPage(title: string, message: string, successful: boolean): string {
     const color = successful ? '#16a34a' : '#dc2626';
     return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="font-family:Arial,sans-serif;background:#fff5f2;padding:32px"><main style="max-width:520px;margin:auto;background:white;padding:32px;border-radius:16px;text-align:center"><h1 style="color:${color}">${title}</h1><p>${message}</p><p>You may now return to Mobile Messenger.</p></main></body></html>`;
+}
+
+function resetPasswordPage(rawToken: string, errorMessage?: string): string {
+    const safeToken = escapeHtml(rawToken);
+    const errorBlock = errorMessage
+        ? `<p style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px 14px">${escapeHtml(errorMessage)}</p>`
+        : '';
+
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reset password</title></head><body style="font-family:Arial,sans-serif;background:#fff5f2;padding:32px"><main style="max-width:420px;margin:auto;background:white;padding:32px;border-radius:16px"><h1 style="margin-top:0">Choose a new password</h1><p>Enter a new password for your Mobile Messenger account.</p>${errorBlock}<form method="post" action="/api/auth/reset-password"><input type="hidden" name="token" value="${safeToken}"><label for="password" style="display:block;font-weight:bold;margin:18px 0 7px">New password</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required style="box-sizing:border-box;border:1px solid #ccc;border-radius:7px;font-size:16px;padding:12px;width:100%"><button type="submit" style="background:#16a34a;border:0;border-radius:7px;color:white;cursor:pointer;font-size:16px;font-weight:bold;margin-top:22px;padding:12px;width:100%">Reset password</button></form></main></body></html>`;
 }
 
 export class AuthController {
@@ -200,6 +228,102 @@ export class AuthController {
         } catch (error) {
             console.error('Resending verification email failed:', error);
             res.status(502).json({ error: 'Unable to send verification email right now.' });
+        }
+    }
+
+    static async requestPasswordReset(req: Request, res: Response): Promise<void> {
+        // Always respond with the same generic message, regardless of whether the
+        // email exists, so this endpoint can't be used to enumerate accounts.
+        const genericMessage = 'If an account with that email exists, a password reset link has been sent.';
+
+        try {
+            const email = typeof req.body.email === 'string'
+                ? req.body.email.trim().toLowerCase()
+                : '';
+
+            if (!isValidEmail(email)) {
+                res.status(400).json({ error: 'Invalid email format.' });
+                return;
+            }
+
+            const user = await UserRepository.findByEmailOrUsername(email, '');
+            if (user) {
+                const reset = createResetToken();
+                await UserRepository.setResetToken(user.id, reset.tokenHash, reset.expiresAt);
+                try {
+                    await sendPasswordResetEmail({
+                        to: user.email,
+                        username: user.username,
+                        token: reset.rawToken,
+                    });
+                } catch (emailError) {
+                    console.error('Failed to send password reset email:', emailError);
+                }
+            }
+
+            res.status(200).json({ message: genericMessage });
+        } catch (error) {
+            console.error('Password reset request failed:', error);
+            res.status(500).json({ error: 'Unable to process password reset request right now.' });
+        }
+    }
+
+    static async resetPassword(req: Request, res: Response): Promise<void> {
+        // The reset link from the email opens this in a browser (GET), which shows
+        // a simple HTML form; the form then submits back here (POST) to actually
+        // change the password. The mobile app can instead call this directly with
+        // JSON, in which case we respond with JSON instead of rendering HTML.
+        if (req.method === 'GET') {
+            const rawToken = typeof req.query.token === 'string' ? req.query.token : '';
+            if (!rawToken) {
+                res.status(400).send(resetPasswordPage('', 'This reset link is missing its token.'));
+                return;
+            }
+            res.status(200).send(resetPasswordPage(rawToken));
+            return;
+        }
+
+        const rawToken = typeof req.body?.token === 'string'
+            ? req.body.token
+            : (typeof req.query.token === 'string' ? req.query.token : '');
+        const newPassword = typeof req.body?.password === 'string' ? req.body.password : '';
+        const isBrowserForm = Boolean(req.is('application/x-www-form-urlencoded'));
+
+        try {
+            if (!rawToken) {
+                throw new Error('This reset link is invalid or has expired.');
+            }
+
+            const passwordCheck = validatePasswordStrength(newPassword);
+            if (!passwordCheck.isValid) {
+                throw new Error(passwordCheck.errors.join(' '));
+            }
+
+            const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(newPassword, salt);
+
+            const user = await UserRepository.resetPassword(tokenHash, passwordHash);
+            if (!user) {
+                throw new Error('This reset link is invalid or has expired.');
+            }
+
+            if (isBrowserForm) {
+                res.status(200).send(verificationPage(
+                    'Password updated',
+                    'Your password has been changed successfully.',
+                    true,
+                ));
+                return;
+            }
+            res.status(200).json({ message: 'Password updated successfully.' });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unable to reset password.';
+            if (isBrowserForm) {
+                res.status(400).send(resetPasswordPage(rawToken, message));
+                return;
+            }
+            res.status(400).json({ error: message });
         }
     }
 }

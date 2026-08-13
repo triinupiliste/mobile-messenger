@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 import 'chat_room_screen.dart';
 
@@ -13,6 +14,7 @@ class ChatListScreen extends StatefulWidget {
 
 class _ChatListScreenState extends State<ChatListScreen> {
   bool _showArchived = false;
+  String? _currentUserId;
 
   @override
   void initState() {
@@ -20,6 +22,32 @@ class _ChatListScreenState extends State<ChatListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ChatProvider>(context, listen: false).fetchChats();
     });
+    _loadCurrentUserId();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    try {
+      final profile = await ApiService.getProfile();
+      if (!mounted) return;
+      setState(() {
+        _currentUserId = profile['id']?.toString() ?? profile['user_id']?.toString();
+      });
+    } catch (_) {
+      // Ignore; falls back to showing messages without the 'You:' prefix.
+    }
+  }
+
+  String? _mediaPreviewLabel(String? mediaType) {
+    switch (mediaType) {
+      case 'image':
+        return 'Sent a photo';
+      case 'video':
+        return 'Sent a video';
+      case 'audio':
+        return 'Sent a voice message';
+      default:
+        return null;
+    }
   }
 
   @override
@@ -65,8 +93,22 @@ class _ChatListScreenState extends State<ChatListScreen> {
               final chat = filteredChats[index];
               final chatId = chat.chatId;
               final contactName = chat.contactName;
-              final lastMessage = chat.lastMessage ?? 'Start a conversation';
               final isArchived = chat.isArchived;
+
+              final isFromMe = _currentUserId != null && chat.lastMessageSenderId == _currentUserId;
+              // Only bold the preview for unread messages the *other* person sent.
+              final hasUnread = chat.unreadCount > 0 && !isFromMe;
+
+              final hasTextContent = chat.lastMessage != null && chat.lastMessage!.isNotEmpty;
+              final mediaLabel = _mediaPreviewLabel(chat.lastMessageType);
+
+              final String previewText;
+              if (!hasTextContent && mediaLabel == null) {
+                previewText = 'Start a conversation';
+              } else {
+                final body = hasTextContent ? chat.lastMessage! : mediaLabel!;
+                previewText = isFromMe ? 'You: $body' : body;
+              }
 
               return Dismissible(
                 key: Key(chatId),
@@ -101,15 +143,46 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ),
                   ),
                   title: Text(contactName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                  subtitle: Text(lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary)),
-                  trailing: const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-                  onTap: () {
-                    Navigator.push(
+                  subtitle: Text(
+                    previewText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: hasUnread ? AppColors.textPrimary : AppColors.textSecondary,
+                      fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasUnread)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          constraints: const BoxConstraints(minWidth: 22),
+                          child: Text(
+                            chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                    ],
+                  ),
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => ChatRoomScreen(chatId: chatId, contactName: contactName),
                       ),
                     );
+                    if (mounted) {
+                      Provider.of<ChatProvider>(context, listen: false).fetchChats();
+                    }
                   },
                 ),
               );

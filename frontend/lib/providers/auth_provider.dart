@@ -26,6 +26,9 @@ class AuthProvider with ChangeNotifier {
     try {
       final token = await StorageService.getToken();
       _isAuthenticated = token != null;
+      if (_isAuthenticated) {
+        await SocketService.initSocket();
+      }
     } catch (e) {
       _isAuthenticated = false;
     }
@@ -48,6 +51,7 @@ class AuthProvider with ChangeNotifier {
       if (res['token'] != null) {
         // CRITICAL: Save the token securely so it persists across app restarts!
         await StorageService.setToken(res['token']);
+        await SocketService.initSocket();
 
         _isAuthenticated = true;
         _emailVerificationRequired = false;
@@ -65,6 +69,15 @@ class AuthProvider with ChangeNotifier {
   Future<String?> resendVerificationEmail(String email) async {
     try {
       final response = await ApiService.resendVerificationEmail(email);
+      return response['message'] as String?;
+    } catch (error) {
+      return error.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
+  Future<String?> requestPasswordReset(String email) async {
+    try {
+      final response = await ApiService.requestPasswordReset(email);
       return response['message'] as String?;
     } catch (error) {
       return error.toString().replaceFirst('Exception: ', '');

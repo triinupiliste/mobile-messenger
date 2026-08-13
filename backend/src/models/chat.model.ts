@@ -20,5 +20,7 @@ export interface ChatListItem {
     last_message_content?: string | null; // Decrypted content preview
     last_message_type?: string | null;
     last_message_status?: string | null;
+    last_message_sender_id?: string | null;
     last_message_time?: Date | null;
+    unread_count: number;
 }

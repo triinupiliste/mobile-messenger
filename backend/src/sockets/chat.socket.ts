@@ -76,6 +76,8 @@ export function registerChatHandlers(io: Server) {
                 const updatedMessage = await MessageRepository.editMessage(data.messageId, userId, data.newContent);
                 if (updatedMessage) {
                     io.to(data.chatId).emit('message_edited', updatedMessage);
+                } else {
+                    socket.emit('error_feedback', { message: 'Could not edit this message.' });
                 }
             } catch (error) {
                 socket.emit('error_feedback', { message: 'Failed to edit message.' });
@@ -85,9 +87,11 @@ export function registerChatHandlers(io: Server) {
         // Handle Deleting Messages
         socket.on('delete_message', async (data: { messageId: string; chatId: string }) => {
             try {
-                const success = await MessageRepository.deleteMessage(data.messageId, userId);
-                if (success) {
-                    io.to(data.chatId).emit('message_deleted', { messageId: data.messageId });
+                const deletedMessage = await MessageRepository.deleteMessage(data.messageId, userId);
+                if (deletedMessage) {
+                    io.to(data.chatId).emit('message_deleted', deletedMessage);
+                } else {
+                    socket.emit('error_feedback', { message: 'Could not delete this message.' });
                 }
             } catch (error) {
                 socket.emit('error_feedback', { message: 'Failed to delete message.' });

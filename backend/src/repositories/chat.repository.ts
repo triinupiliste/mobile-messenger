@@ -39,18 +39,28 @@ export class ChatRepository {
                 m.content AS last_message_content,
                 m.media_type AS last_message_type,
                 m.status AS last_message_status,
-                m.created_at AS last_message_time
+                m.sender_id AS last_message_sender_id,
+                m.created_at AS last_message_time,
+                COALESCE(unread.unread_count, 0)::int AS unread_count
             FROM chat_participants cp
             JOIN chat_participants other_cp ON cp.chat_id = other_cp.chat_id AND other_cp.user_id != $1
             JOIN users u ON other_cp.user_id = u.id
             LEFT JOIN profiles p ON u.id = p.user_id
             LEFT JOIN LATERAL (
-                SELECT content, media_type, status, created_at 
+                SELECT content, media_type, status, sender_id, created_at 
                 FROM messages 
                 WHERE chat_id = cp.chat_id AND is_deleted = FALSE 
                 ORDER BY created_at DESC 
                 LIMIT 1
             ) m ON true
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*) AS unread_count
+                FROM messages msg2
+                WHERE msg2.chat_id = cp.chat_id
+                  AND msg2.sender_id != $1
+                  AND msg2.status != 'read'
+                  AND msg2.is_deleted = FALSE
+            ) unread ON true
             WHERE cp.user_id = $1
             ORDER BY m.created_at DESC NULLS LAST`;
 

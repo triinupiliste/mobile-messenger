@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'storage_service.dart';
 
@@ -24,38 +26,50 @@ class SocketService {
       'auth': {'token': token},
     });
 
-    _socket!.connect();
+    final connected = Completer<void>();
 
     _socket!.onConnect((_) {
       print('🔌 Connected to Socket.io server');
+      if (!connected.isCompleted) connected.complete();
+    });
+
+    _socket!.onConnectError((error) {
+      print('🔌 Socket connect error: $error');
+      if (!connected.isCompleted) connected.complete();
     });
 
     _socket!.onDisconnect((_) {
       print('🔌 Disconnected from Socket.io server');
     });
+
+    _socket!.connect();
+
+    // Wait for the connection to actually establish (or fail) before returning,
+    // so callers can rely on the socket being ready right after initSocket().
+    await connected.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {},
+    );
   }
 
   static void joinChat(String chatId) {
-    if (_socket != null && _socket!.connected) {
-      _socket!.emit('join_chat', chatId);
-    }
+    // socket.io-client buffers emits until the connection is established,
+    // so we don't need to gate this on `connected` — doing so previously
+    // caused join/send calls to be silently dropped during a reconnect race.
+    _socket?.emit('join_chat', chatId);
   }
 
   static void sendMessage(String chatId, String content, {String? mediaUrl, String mediaType = 'text'}) {
-    if (_socket != null && _socket!.connected) {
-      _socket!.emit('send_message', {
-        'chatId': chatId,
-        'content': content,
-        'mediaUrl': mediaUrl,
-        'mediaType': mediaType,
-      });
-    }
+    _socket?.emit('send_message', {
+      'chatId': chatId,
+      'content': content,
+      'mediaUrl': mediaUrl,
+      'mediaType': mediaType,
+    });
   }
 
   static void sendTypingIndicator(String chatId, bool isTyping) {
-    if (_socket != null && _socket!.connected) {
-      _socket!.emit('typing', {'chatId': chatId, 'isTyping': isTyping});
-    }
+    _socket?.emit('typing', {'chatId': chatId, 'isTyping': isTyping});
   }
 
   static void disconnect() {

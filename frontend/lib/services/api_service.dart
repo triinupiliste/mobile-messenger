@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'storage_service.dart';
 
@@ -50,6 +51,19 @@ class ApiService {
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode != 200) {
       throw Exception(data['error'] ?? 'Failed to send verification email');
+    }
+    return data;
+  }
+
+  static Future<Map<String, dynamic>> requestPasswordReset(String email) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/request-password-reset'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email.trim()}),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode != 200) {
+      throw Exception(data['error'] ?? 'Failed to request password reset');
     }
     return data;
   }
@@ -189,5 +203,51 @@ class ApiService {
       return jsonDecode(response.body);
     }
     return [];
+  }
+
+  static Future<List<dynamic>> getMessages(String chatId) async {
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/chats/$chatId/messages'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) return data;
+    }
+    return [];
+  }
+
+  static Future<void> markChatMessagesRead(String chatId) async {
+    final headers = await _getHeaders();
+    await http.patch(
+      Uri.parse('$baseUrl/chats/$chatId/read'),
+      headers: headers,
+    );
+  }
+
+  // Uploads a local media file (image, video, or voice note) and returns its
+  // publicly reachable URL so it can be sent as a message's mediaUrl.
+  static Future<String> uploadMedia(File file) async {
+    final token = await StorageService.getToken();
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/media/upload'),
+    );
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['url'] as String;
+    }
+
+    final data = jsonDecode(response.body);
+    throw Exception(data['error'] ?? 'Failed to upload media.');
   }
 }

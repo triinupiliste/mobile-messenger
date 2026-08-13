@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ChatRepository } from '../repositories/chat.repository';
 import { MessageRepository } from '../repositories/message.repository';
+import { getIO } from '../sockets/socket.instance';
 
 export class ChatController {
     static async getChatList(req: Request, res: Response): Promise<void> {
@@ -33,6 +34,21 @@ export class ChatController {
             res.status(200).json(messages);
         } catch (error) {
             res.status(500).json({ error: 'Failed to fetch chat messages.' });
+        }
+    }
+
+    static async markMessagesRead(req: Request, res: Response): Promise<void> {
+        try {
+            const userId = (req as any).user.userId;
+            const chatId = req.params.chatId as string;
+            await MessageRepository.markChatMessagesRead(chatId, userId);
+
+            // Notify the other participant(s) in real time so their sent messages show as read.
+            getIO()?.to(chatId).emit('messages_read', { chatId, readerId: userId });
+
+            res.status(200).json({ message: 'Messages marked as read.' });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to mark messages as read.' });
         }
     }
 }
