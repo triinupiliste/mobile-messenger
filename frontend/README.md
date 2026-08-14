@@ -46,5 +46,4 @@ frontend/
 
 
 what needs to be added:
-- typing indicator does not show
 - archive chats

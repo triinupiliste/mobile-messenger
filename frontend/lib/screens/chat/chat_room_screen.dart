@@ -10,6 +10,7 @@ import '../../services/audio_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/chat/message_bubble.dart';
+import '../../widgets/chat/typing_indicator_bubble.dart';
 import '../../widgets/common/user_avatar.dart';
 
 class ChatRoomScreen extends StatefulWidget {
@@ -134,9 +135,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     _onUserTyping = (data) {
       if (data['chatId'] == widget.chatId) {
+        final isTyping = data['isTyping'] == true;
+        final wasTyping = _isRemoteUserTyping;
         setState(() {
-          _isRemoteUserTyping = data['isTyping'];
+          _isRemoteUserTyping = isTyping;
         });
+        // Keep the latest message in view as the typing bubble grows the
+        // column below the list, pushing content up.
+        if (isTyping && !wasTyping) {
+          _scrollToBottom();
+        }
       }
     };
     SocketService.on('user_typing', _onUserTyping);
@@ -692,13 +700,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          children: [
-            Text(widget.contactName, style: const TextStyle(fontSize: 16)),
-            if (_isRemoteUserTyping)
-              const Text('typing...', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.white70)),
-          ],
-        ),
+        title: Text(widget.contactName, style: const TextStyle(fontSize: 16)),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -823,6 +825,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ),
               ],
             ),
+          ),
+
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SizeTransition(sizeFactor: animation, axisAlignment: -1, child: child),
+            ),
+            child: _isRemoteUserTyping
+                ? const Padding(
+                    key: ValueKey('typing'),
+                    padding: EdgeInsets.only(top: 4),
+                    child: TypingIndicatorBubble(),
+                  )
+                : const SizedBox.shrink(key: ValueKey('not_typing')),
           ),
 
           if (_replyingTo != null)
