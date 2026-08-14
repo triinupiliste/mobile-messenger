@@ -1,5 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../screens/media/full_screen_media_viewer.dart';
 import '../../services/audio_service.dart';
+import '../../services/video_thumbnail_service.dart';
 import '../../theme/app_colors.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -10,10 +13,11 @@ class MessageBubble extends StatelessWidget {
   final bool isMe;
   final bool isDeleted;
   final String timestamp;
-  final String status; // 'sent', 'delivered', 'read'
+  final String status; // 'sending', 'sent', 'delivered', 'read', 'failed'
   final bool isEdited;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onRetry;
 
   const MessageBubble({
     super.key,
@@ -28,9 +32,35 @@ class MessageBubble extends StatelessWidget {
     required this.isEdited,
     this.onEdit,
     this.onDelete,
+    this.onRetry,
   });
 
   Widget _buildStatusIcon() {
+    if (status == 'sending') {
+      return SizedBox(
+        width: 12,
+        height: 12,
+        child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.grey.shade400),
+      );
+    }
+
+    if (status == 'failed') {
+      return GestureDetector(
+        onTap: onRetry,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 14, color: AppColors.error),
+            const SizedBox(width: 2),
+            Text(
+              'Failed · Retry',
+              style: TextStyle(fontSize: 10, color: AppColors.error, fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
+            ),
+          ],
+        ),
+      );
+    }
+
     IconData icon;
     Color color = Colors.grey.shade400;
 
@@ -42,44 +72,48 @@ class MessageBubble extends StatelessWidget {
       icon = Icons.done_all;
       color = Colors.blue.shade400; // Read indicator color
     } else {
-      icon = Icons.error_outline;
-      color = AppColors.error; // Failed delivery feedback
+      icon = Icons.check;
     }
 
     return Icon(icon, size: 16, color: color);
   }
 
-  Widget _buildMediaPreview(bool isMe) {
+  void _openFullScreen(BuildContext context) {
+    Navigator.of(context).push(
+      FullScreenMediaViewer.route(mediaUrl: mediaUrl!, mediaType: mediaType),
+    );
+  }
+
+  Widget _buildMediaPreview(BuildContext context, bool isMe) {
     switch (mediaType) {
       case 'audio':
         return _AudioBubble(url: mediaUrl!, isMe: isMe);
       case 'video':
-        return Container(
-          height: 150,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.black12,
+        return GestureDetector(
+          onTap: () => _openFullScreen(context),
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Center(
-            child: Icon(Icons.videocam, size: 40, color: Colors.black45),
+            child: _VideoThumbnail(url: mediaUrl!),
           ),
         );
       case 'image':
       default:
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            mediaUrl!,
-            height: 150,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
+        return GestureDetector(
+          onTap: () => _openFullScreen(context),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              mediaUrl!,
               height: 150,
               width: double.infinity,
-              color: Colors.black12,
-              child: const Center(
-                child: Icon(Icons.broken_image, color: Colors.black45),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                height: 150,
+                width: double.infinity,
+                color: Colors.black12,
+                child: const Center(
+                  child: Icon(Icons.broken_image, color: Colors.black45),
+                ),
               ),
             ),
           ),
@@ -125,7 +159,7 @@ class MessageBubble extends StatelessWidget {
               )
             else ...[
               if (mediaUrl != null && mediaUrl!.isNotEmpty)
-                _buildMediaPreview(isMe),
+                _buildMediaPreview(context, isMe),
               if (content.isNotEmpty) ...[
                 if (mediaUrl != null) const SizedBox(height: 6),
                 Text(
@@ -154,7 +188,7 @@ class MessageBubble extends StatelessWidget {
                   const SizedBox(width: 4),
                   _buildStatusIcon(),
                 ],
-                if (isMe && !isDeleted) ...[
+                if (isMe && !isDeleted && (onEdit != null || onDelete != null)) ...[
                   const SizedBox(width: 4),
                   PopupMenuButton<String>(
                     padding: EdgeInsets.zero,
@@ -164,8 +198,8 @@ class MessageBubble extends StatelessWidget {
                       if (value == 'delete' && onDelete != null) onDelete!();
                     },
                     itemBuilder: (context) => [
-                      if (mediaType == 'text') const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      if (mediaType == 'text' && onEdit != null) const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      if (onDelete != null) const PopupMenuItem(value: 'delete', child: Text('Delete')),
                     ],
                   ),
                 ]
@@ -224,6 +258,65 @@ class _AudioBubbleState extends State<_AudioBubble> {
         Text(
           'Voice message',
           style: TextStyle(color: widget.isMe ? Colors.white : AppColors.textPrimary, fontSize: 14),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoThumbnail extends StatefulWidget {
+  final String url;
+
+  const _VideoThumbnail({required this.url});
+
+  @override
+  State<_VideoThumbnail> createState() => _VideoThumbnailState();
+}
+
+class _VideoThumbnailState extends State<_VideoThumbnail> {
+  Uint8List? _thumbnail;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThumbnail();
+  }
+
+  Future<void> _loadThumbnail() async {
+    final bytes = await VideoThumbnailService.getThumbnail(widget.url);
+    if (!mounted) return;
+    setState(() {
+      _thumbnail = bytes;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (_thumbnail != null)
+          Image.memory(
+            _thumbnail!,
+            height: 150,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          )
+        else
+          Container(
+            height: 150,
+            width: double.infinity,
+            color: Colors.black12,
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                : null,
+          ),
+        Container(
+          decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+          padding: const EdgeInsets.all(8),
+          child: const Icon(Icons.play_arrow, size: 32, color: Colors.white),
         ),
       ],
     );

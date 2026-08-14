@@ -33,6 +33,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
   final AudioService _audioService = AudioService();
+
+  // Tracks messages this device sent but hasn't heard back from the server
+  // about yet, keyed by a locally-generated tempId. If the server doesn't
+  // confirm (echo) a message back within this window, it's marked 'failed'
+  // so the user gets visual feedback and a retry option instead of the
+  // message silently vanishing (e.g. when offline or the socket drops).
+  static const Duration _sendTimeout = Duration(seconds: 10);
+  final Map<String, Timer> _pendingSendTimers = {};
   
   final List<Map<String, dynamic>> _messages = [];
   bool _isRemoteUserTyping = false;
@@ -51,6 +59,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   // throw and prevent later listeners for the same event from running).
   late final void Function(dynamic) _onConnect;
   late final void Function(dynamic) _onReceiveMessage;
+  late final void Function(dynamic) _onErrorFeedbackMarksFailed;
   late final void Function(dynamic) _onUserTyping;
   late final void Function(dynamic) _onMessageEdited;
   late final void Function(dynamic) _onMessageDeleted;
@@ -78,14 +87,49 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     // 2. Listen for incoming real-time socket events
     _onReceiveMessage = (data) {
-      if (data['chat_id'] == widget.chatId) {
-        setState(() {
-          _messages.add(Map<String, dynamic>.from(data));
-        });
-        _scrollToBottom();
+      if (data['chat_id'] != widget.chatId) return;
+      final incoming = Map<String, dynamic>.from(data);
+      final tempId = incoming['tempId']?.toString();
+
+      setState(() {
+        final pendingIndex = tempId != null ? _messages.indexWhere((m) => m['_tempId'] == tempId) : -1;
+        if (pendingIndex != -1) {
+          // This confirms a message this device just sent — replace the
+          // optimistic placeholder with the server-confirmed message.
+          _messages[pendingIndex] = incoming;
+        } else {
+          _messages.add(incoming);
+        }
+      });
+      if (tempId != null) {
+        _pendingSendTimers.remove(tempId)?.cancel();
+      }
+      _scrollToBottom();
+
+      // Let the sender know their message actually reached this device live,
+      // so their tick updates from 'sent' to 'delivered'.
+      if (_currentUserId != null && incoming['sender_id'] != _currentUserId) {
+        final messageId = incoming['id']?.toString();
+        if (messageId != null && messageId.isNotEmpty) {
+          SocketService.updateMessageStatus(widget.chatId, messageId, 'delivered');
+        }
       }
     };
     SocketService.on('receive_message', _onReceiveMessage);
+
+    // If the server rejects a send outright (e.g. an unexpected error while
+    // saving), mark that specific pending message failed immediately instead
+    // of waiting out the full send timeout.
+    _onErrorFeedbackMarksFailed = (data) {
+      final tempId = data['tempId']?.toString();
+      if (tempId == null) return;
+      _pendingSendTimers.remove(tempId)?.cancel();
+      final index = _messages.indexWhere((m) => m['_tempId'] == tempId);
+      if (index != -1 && mounted) {
+        setState(() => _messages[index]['status'] = 'failed');
+      }
+    };
+    SocketService.on('error_feedback', _onErrorFeedbackMarksFailed);
 
     _onUserTyping = (data) {
       if (data['chatId'] == widget.chatId) {
@@ -269,18 +313,71 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final content = _messageController.text.trim();
     if (content.isEmpty && mediaUrl == null) return;
 
+    final tempId = 'temp_${DateTime.now().microsecondsSinceEpoch}';
+
+    setState(() {
+      _messages.add({
+        '_tempId': tempId,
+        'id': '',
+        'chat_id': widget.chatId,
+        'sender_id': _currentUserId,
+        'content': content,
+        'media_url': mediaUrl,
+        'media_type': mediaType,
+        'status': 'sending',
+        'is_edited': false,
+        'is_deleted': false,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    });
+    _scrollToBottom();
+
     SocketService.sendMessage(
       widget.chatId,
       content,
       mediaUrl: mediaUrl,
       mediaType: mediaType,
+      tempId: tempId,
     );
+    _startSendTimeout(tempId);
 
     _messageController.clear();
     if (_isTyping) {
       _isTyping = false;
       SocketService.sendTypingIndicator(widget.chatId, false);
     }
+  }
+
+  void _startSendTimeout(String tempId) {
+    _pendingSendTimers[tempId]?.cancel();
+    _pendingSendTimers[tempId] = Timer(_sendTimeout, () {
+      _pendingSendTimers.remove(tempId);
+      if (!mounted) return;
+      final index = _messages.indexWhere((m) => m['_tempId'] == tempId);
+      if (index != -1 && _messages[index]['status'] == 'sending') {
+        setState(() => _messages[index]['status'] = 'failed');
+      }
+    });
+  }
+
+  // Re-sends a message that previously failed (e.g. connection dropped, or
+  // the server rejected it), reusing the same tempId so the retried send
+  // still replaces this same bubble once confirmed.
+  void _retryMessage(String tempId) {
+    final index = _messages.indexWhere((m) => m['_tempId'] == tempId);
+    if (index == -1) return;
+
+    final msg = _messages[index];
+    setState(() => msg['status'] = 'sending');
+
+    SocketService.sendMessage(
+      widget.chatId,
+      msg['content'] ?? '',
+      mediaUrl: msg['media_url'],
+      mediaType: msg['media_type'] ?? 'text',
+      tempId: tempId,
+    );
+    _startSendTimeout(tempId);
   }
 
   Future<void> _editMessage(String messageId, String currentContent) async {
@@ -505,6 +602,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
     SocketService.off('connect', _onConnect);
     SocketService.off('receive_message', _onReceiveMessage);
+    SocketService.off('error_feedback', _onErrorFeedbackMarksFailed);
     SocketService.off('user_typing', _onUserTyping);
     SocketService.off('message_edited', _onMessageEdited);
     SocketService.off('message_deleted', _onMessageDeleted);
@@ -513,6 +611,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _itemPositionsListener.itemPositions.removeListener(_handleItemPositionsChanged);
     _messageController.dispose();
     _typingTimer?.cancel();
+    for (final timer in _pendingSendTimers.values) {
+      timer.cancel();
+    }
     super.dispose();
   }
 
@@ -582,6 +683,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               final msg = _messages[index];
                               final bool isMe = _currentUserId != null && msg['sender_id'] == _currentUserId;
                               final bool isDeleted = msg['is_deleted'] ?? false;
+                              final String status = msg['status'] ?? 'sent';
+                              // A message that hasn't been confirmed by the server yet
+                              // (still sending, or failed) has no real id — editing or
+                              // deleting it doesn't make sense until it's confirmed.
+                              final bool isConfirmed = status != 'sending' && status != 'failed';
 
                               return MessageBubble(
                                 messageId: msg['id'] ?? '',
@@ -591,13 +697,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                 isMe: isMe,
                                 isDeleted: isDeleted,
                                 timestamp: _formatTimestamp(msg['created_at']),
-                                status: msg['status'] ?? 'sent',
+                                status: status,
                                 isEdited: msg['is_edited'] ?? false,
-                                onEdit: (isMe && !isDeleted)
+                                onEdit: (isMe && !isDeleted && isConfirmed)
                                     ? () => _editMessage(msg['id'] ?? '', msg['content'] ?? '')
                                     : null,
-                                onDelete: (isMe && !isDeleted)
+                                onDelete: (isMe && !isDeleted && isConfirmed)
                                     ? () => _confirmDeleteMessage(msg['id'] ?? '')
+                                    : null,
+                                onRetry: (isMe && status == 'failed')
+                                    ? () => _retryMessage(msg['_tempId'] as String)
                                     : null,
                               );
                             },

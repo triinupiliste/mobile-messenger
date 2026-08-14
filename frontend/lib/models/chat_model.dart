@@ -9,6 +9,7 @@ class ChatModel {
   final String? lastMessageSenderId;
   final int unreadCount;
   bool isArchived;
+  bool isMuted;
 
   ChatModel({
     required this.chatId,
@@ -21,6 +22,7 @@ class ChatModel {
     this.lastMessageSenderId,
     this.unreadCount = 0,
     this.isArchived = false,
+    this.isMuted = false,
   });
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +41,7 @@ class ChatModel {
           ? json['unread_count']
           : int.tryParse(json['unread_count']?.toString() ?? '') ?? 0,
       isArchived: json['is_archived'] ?? false,
+      isMuted: json['is_muted'] ?? false,
     );
   }
 }

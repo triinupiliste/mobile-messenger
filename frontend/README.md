@@ -43,3 +43,13 @@ frontend/
         ├── common/                        
         ├── chat/                          
         └── profile/
+
+
+what needs to be added:
+- if searching for an account that you are already friends with, instead of "invite" button display "friends"
+- if searching for an account that invite is pending, display "pending"
+- if someone declined the invite, the invite clears from the outgoing and incoming and they can be found again in the search and invited again
+- app should have settings, where i can choose the theme of the app
+- default theme is sunset coral, we could also have calm forest or sth where everything is the same except shades of green
+- the default profile icon should be in the strongest theme color
+- saving media to phone

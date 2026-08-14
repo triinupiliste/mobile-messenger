@@ -1,18 +1,42 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../config/server_config.dart';
 import 'storage_service.dart';
+
+// The http package's MultipartFile.fromPath() does NOT infer a content-type
+// from the file's extension — it silently defaults to
+// application/octet-stream unless one is passed explicitly. The backend's
+// avatar upload endpoint filters on the multipart file's mimetype, so without
+// this every avatar upload (including PNGs) was being rejected regardless of
+// the actual image format.
+MediaType? _imageContentTypeForPath(String path) {
+  final extension = path.split('.').last.toLowerCase();
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return MediaType('image', 'jpeg');
+    case 'png':
+      return MediaType('image', 'png');
+    default:
+      return null;
+  }
+}
 
 class ApiService {
   static const String baseUrl = '$serverBaseUrl/api';
 
-  // ngrok's free tier serves an HTML interstitial warning page to any
-  // non-browser request unless this header is present, which would
-  // otherwise break JSON parsing for every API call.
-  static const Map<String, String> _ngrokHeader = {
+  static const Map<String, String> ngrokHeader = {
     'ngrok-skip-browser-warning': 'true',
   };
+
+  // ngrok's free tier serves an HTML interstitial warning page to any
+  // non-browser request unless this header is present, which would
+  // otherwise break JSON parsing for every API call. Exposed publicly so
+  // other services making their own native network requests for media URLs
+  // (video thumbnail generation, video playback) can send it too.
+  static const Map<String, String> _ngrokHeader = ngrokHeader;
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await StorageService.getToken();
@@ -311,7 +335,11 @@ class ApiService {
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    request.files.add(await http.MultipartFile.fromPath(
+      'file',
+      file.path,
+      contentType: _imageContentTypeForPath(file.path),
+    ));
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);

@@ -55,9 +55,9 @@ export function registerChatHandlers(io: Server) {
         });
 
         // Handle sending messages (Text, Images, Videos, Audio)
-        socket.on('send_message', async (data: { chatId: string; content?: string; mediaUrl?: string; mediaType?: any }) => {
+        socket.on('send_message', async (data: { chatId: string; content?: string; mediaUrl?: string; mediaType?: any; tempId?: string }) => {
             try {
-                const { chatId, content, mediaUrl, mediaType } = data;
+                const { chatId, content, mediaUrl, mediaType, tempId } = data;
                 
                 // Save message to database and encrypt content
                 const savedMessage = await MessageRepository.saveMessage(
@@ -68,8 +68,10 @@ export function registerChatHandlers(io: Server) {
                     mediaType || 'text'
                 );
                 
-                // Broadcast the message to all participants in the chat room
-                io.to(chatId).emit('receive_message', savedMessage);
+                // Broadcast the message to all participants in the chat room. tempId is
+                // echoed back (not persisted) so the sender's client can reconcile its
+                // optimistically-rendered message with the confirmed, saved one.
+                io.to(chatId).emit('receive_message', { ...savedMessage, tempId });
 
                 // Push-notify every other participant who isn't muted on this chat.
                 try {
@@ -97,7 +99,10 @@ export function registerChatHandlers(io: Server) {
                     console.error('Failed to send message push notification:', pushError);
                 }
             } catch (error) {
-                socket.emit('error_feedback', { message: 'Failed to send message.' });
+                // Echo the tempId back so the sender can immediately mark that
+                // specific pending message as failed instead of waiting for its
+                // client-side send timeout to expire.
+                socket.emit('error_feedback', { message: 'Failed to send message.', tempId: data.tempId });
             }
         });
 

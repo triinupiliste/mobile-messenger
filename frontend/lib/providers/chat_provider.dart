@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/chat_model.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../services/notification_service.dart';
 
 class ChatProvider with ChangeNotifier {
   List<ChatModel> _chats = [];
@@ -26,6 +27,14 @@ class ChatProvider with ChangeNotifier {
       final data = await ApiService.getChats();
       _chats = data.map((json) => ChatModel.fromJson(json)).toList();
       _sortChats();
+
+      // The server is the source of truth for mute state (it's what actually
+      // suppresses push notifications). Re-seed the in-memory cache every time
+      // the list loads so the mute/unmute UI reflects reality instead of
+      // resetting to "unmuted" after an app restart.
+      for (final chat in _chats) {
+        NotificationSettingsService.setChatMuted(chat.chatId, chat.isMuted);
+      }
     } catch (e) {
       debugPrint('Error fetching chats: $e');
     }
@@ -67,6 +76,7 @@ class ChatProvider with ChangeNotifier {
             lastMessageSenderId: data['sender_id'],
             unreadCount: _chats[index].unreadCount,
             isArchived: _chats[index].isArchived,
+            isMuted: _chats[index].isMuted,
           );
           _sortChats();
           notifyListeners();

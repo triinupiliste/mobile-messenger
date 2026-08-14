@@ -215,6 +215,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               AvatarPicker(
                 currentImageUrl: _avatarUrl,
                 selectedFile: _selectedAvatarFile,
+                displayName: _usernameController.text,
                 onImageSelected: (file) {
                   setState(() {
                     _selectedAvatarFile = file;

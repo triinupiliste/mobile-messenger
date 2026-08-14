@@ -2,16 +2,19 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../theme/app_colors.dart';
+import '../common/user_avatar.dart';
 
 class AvatarPicker extends StatelessWidget {
   final String? currentImageUrl;
   final File? selectedFile;
+  final String displayName;
   final Function(File) onImageSelected;
 
   const AvatarPicker({
     super.key,
     this.currentImageUrl,
     this.selectedFile,
+    required this.displayName,
     required this.onImageSelected,
   });
 
@@ -77,26 +80,27 @@ class AvatarPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ImageProvider? backgroundImage;
-
-    if (selectedFile != null) {
-      backgroundImage = FileImage(selectedFile!);
-    } else if (currentImageUrl != null && currentImageUrl!.isNotEmpty) {
-      backgroundImage = NetworkImage(currentImageUrl!);
-    }
+    // A newly-picked-but-not-yet-saved local file takes priority. Otherwise,
+    // fall back to the same UserAvatar used everywhere else in the app (a
+    // real network image, or the same deterministic initials avatar) so the
+    // default profile picture is consistent across every screen.
+    final Widget avatar = selectedFile != null
+        ? CircleAvatar(
+            radius: 50,
+            backgroundColor: AppColors.primary.withOpacity(0.1),
+            backgroundImage: FileImage(selectedFile!),
+          )
+        : UserAvatar(
+            avatarUrl: currentImageUrl,
+            displayName: displayName,
+            radius: 50,
+          );
 
     return GestureDetector(
       onTap: () => _showPickerOptions(context),
       child: Stack(
         children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            backgroundImage: backgroundImage,
-            child: backgroundImage == null
-                ? const Icon(Icons.person, size: 50, color: AppColors.primary)
-                : null,
-          ),
+          avatar,
           Positioned(
             bottom: 0,
             right: 0,

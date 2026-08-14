@@ -61,8 +61,49 @@ export class MediaController {
             const encrypted = await fs.promises.readFile(filePath);
             const decrypted = decryptBuffer(encrypted);
             const contentType = MIME_TYPES_BY_EXTENSION[path.extname(filename).toLowerCase()] || 'application/octet-stream';
+            const totalSize = decrypted.length;
+
             res.setHeader('Content-Type', contentType);
             res.setHeader('Cache-Control', 'private, max-age=86400');
+            // Required for video seeking/thumbnail extraction: Android's
+            // MediaMetadataRetriever (used by the video_thumbnail plugin) and video
+            // players need to be able to fetch specific byte ranges of a video to
+            // jump to a frame or its metadata atoms, rather than only reading
+            // sequentially from the start.
+            res.setHeader('Accept-Ranges', 'bytes');
+
+            const rangeHeader = req.headers.range;
+            if (rangeHeader) {
+                const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+                let start = match && match[1] ? parseInt(match[1], 10) : NaN;
+                let end = match && match[2] ? parseInt(match[2], 10) : NaN;
+
+                if (!match || (Number.isNaN(start) && Number.isNaN(end))) {
+                    res.status(416).setHeader('Content-Range', `bytes */${totalSize}`).end();
+                    return;
+                }
+                if (Number.isNaN(start)) {
+                    // Suffix range, e.g. "bytes=-500" -> last 500 bytes.
+                    start = Math.max(totalSize - end, 0);
+                    end = totalSize - 1;
+                } else if (Number.isNaN(end)) {
+                    end = totalSize - 1;
+                }
+
+                if (start > end || start >= totalSize) {
+                    res.status(416).setHeader('Content-Range', `bytes */${totalSize}`).end();
+                    return;
+                }
+                end = Math.min(end, totalSize - 1);
+
+                res.status(206);
+                res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+                res.setHeader('Content-Length', String(end - start + 1));
+                res.send(decrypted.subarray(start, end + 1));
+                return;
+            }
+
+            res.setHeader('Content-Length', String(totalSize));
             res.status(200).send(decrypted);
         } catch (error) {
             res.status(404).json({ error: 'File not found.' });
