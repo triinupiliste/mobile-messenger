@@ -13,11 +13,13 @@ import '../../widgets/chat/message_bubble.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
+  final String contactId;
   final String contactName;
 
   const ChatRoomScreen({
     super.key,
     required this.chatId,
+    this.contactId = '',
     required this.contactName,
   });
 
@@ -396,6 +398,72 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
+  Future<void> _viewProfile() async {
+    if (widget.contactId.isEmpty) return;
+
+    Map<String, dynamic>? profile;
+    String? error;
+    try {
+      profile = await ApiService.getUserProfile(widget.contactId);
+    } catch (e) {
+      error = e.toString().replaceFirst('Exception: ', '');
+    }
+
+    if (!mounted) return;
+
+    if (profile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error ?? 'Failed to load profile.')),
+      );
+      return;
+    }
+
+    final avatarUrl = profile['avatar_url']?.toString();
+    final username = profile['username']?.toString() ?? widget.contactName;
+    final email = profile['email']?.toString() ?? '';
+    final aboutMe = profile['about_me']?.toString();
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
+                  ? NetworkImage(avatarUrl)
+                  : null,
+              child: (avatarUrl == null || avatarUrl.isEmpty)
+                  ? const Icon(Icons.person, size: 40, color: AppColors.primary)
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            Text(username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(email, style: const TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                (aboutMe == null || aboutMe.isEmpty) ? 'No bio yet.' : aboutMe,
+                style: const TextStyle(color: AppColors.textPrimary),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Audio recording toggle method
   Future<void> _toggleRecording() async {
     if (!_isRecording) {
@@ -441,12 +509,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(NotificationSettingsService.isChatMuted(widget.chatId) ? 'Chat muted' : 'Chat unmuted')),
                 );
+              } else if (value == 'view_profile') {
+                _viewProfile();
               }
             },
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'mute',
                 child: Text(isMuted ? 'Unmute Notifications' : 'Mute Notifications'),
+              ),
+              const PopupMenuItem(
+                value: 'view_profile',
+                child: Text('View Profile'),
               ),
             ],
           ),

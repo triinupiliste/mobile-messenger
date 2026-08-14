@@ -79,7 +79,21 @@ class ApiService {
     throw Exception('Failed to fetch profile');
   }
 
+  // Fetches another user's public profile (username, email, avatar, about me).
+  static Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    final headers = await _getHeaders();
+    final response =
+        await http.get(Uri.parse('$baseUrl/users/$userId'), headers: headers);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(data);
+    }
+    throw Exception(data['error'] ?? 'Failed to fetch user profile');
+  }
+
   static Future<Map<String, dynamic>> updateProfile({
+    String? username,
+    String? email,
     String? avatarUrl,
     String? aboutMe,
   }) async {
@@ -88,6 +102,8 @@ class ApiService {
       Uri.parse('$baseUrl/users/profile'),
       headers: headers,
       body: jsonEncode({
+        if (username != null) 'username': username,
+        if (email != null) 'email': email,
         'avatar_url': avatarUrl,
         'about_me': aboutMe,
       }),

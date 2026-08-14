@@ -137,10 +137,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primary.withOpacity(0.2),
-                    child: Text(
-                      contactName.isNotEmpty ? contactName[0].toUpperCase() : '?',
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                    ),
+                    backgroundImage: (chat.contactAvatar != null && chat.contactAvatar!.isNotEmpty)
+                        ? NetworkImage(chat.contactAvatar!)
+                        : null,
+                    child: (chat.contactAvatar == null || chat.contactAvatar!.isEmpty)
+                        ? Text(
+                            contactName.isNotEmpty ? contactName[0].toUpperCase() : '?',
+                            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                          )
+                        : null,
                   ),
                   title: Text(contactName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   subtitle: Text(
@@ -177,7 +182,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ChatRoomScreen(chatId: chatId, contactName: contactName),
+                        builder: (_) => ChatRoomScreen(
+                          chatId: chatId,
+                          contactId: chat.contactId,
+                          contactName: contactName,
+                        ),
                       ),
                     );
                     if (mounted) {

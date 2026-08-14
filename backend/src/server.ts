@@ -1,6 +1,5 @@
 import express from 'express';
 import http from 'http';
-import path from 'path';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -10,6 +9,7 @@ import userRoutes from './routes/user.routes';
 import inviteRoutes from './routes/invite.routes';
 import chatRoutes from './routes/chat.routes';
 import mediaRoutes from './routes/media.routes';
+import { MediaController } from './controllers/media.controller';
 import { errorHandler } from './middleware/error.middleware';
 import { registerChatHandlers } from './sockets/chat.socket';
 import { setIO } from './sockets/socket.instance';
@@ -32,8 +32,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded media (images, videos, voice notes) statically
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Serve uploaded media (images, videos, voice notes). Files are stored encrypted
+// at rest, so this decrypts them on the fly rather than using express.static.
+app.get('/uploads/:filename', MediaController.getMedia);
 
 // API Routes
 app.use('/api/auth', authRoutes);

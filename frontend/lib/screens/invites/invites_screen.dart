@@ -103,14 +103,19 @@ class InvitesScreenState extends State<InvitesScreen> {
                           itemBuilder: (context, index) {
                             final invite = _incoming[index];
                             final sender = invite['sender'] ?? {};
+                            final senderAvatar = sender['avatar_url']?.toString();
                             return Card(
                               color: AppColors.surface,
                               margin: const EdgeInsets.symmetric(vertical: 6),
                               child: ListTile(
-                                leading: const CircleAvatar(
+                                leading: CircleAvatar(
                                   backgroundColor: AppColors.primary,
-                                  child:
-                                      Icon(Icons.person, color: Colors.white),
+                                  backgroundImage: (senderAvatar != null && senderAvatar.isNotEmpty)
+                                      ? NetworkImage(senderAvatar)
+                                      : null,
+                                  child: (senderAvatar == null || senderAvatar.isEmpty)
+                                      ? const Icon(Icons.person, color: Colors.white)
+                                      : null,
                                 ),
                                 title: Text(sender['username'] ?? 'User',
                                     style: const TextStyle(
@@ -153,14 +158,19 @@ class InvitesScreenState extends State<InvitesScreen> {
                           itemBuilder: (context, index) {
                             final invite = _outgoing[index];
                             final recipient = invite['recipient'] ?? {};
+                            final recipientAvatar = recipient['avatar_url']?.toString();
                             return Card(
                               color: AppColors.surface,
                               margin: const EdgeInsets.symmetric(vertical: 6),
                               child: ListTile(
-                                leading: const CircleAvatar(
+                                leading: CircleAvatar(
                                   backgroundColor: AppColors.textSecondary,
-                                  child:
-                                      Icon(Icons.person, color: Colors.white),
+                                  backgroundImage: (recipientAvatar != null && recipientAvatar.isNotEmpty)
+                                      ? NetworkImage(recipientAvatar)
+                                      : null,
+                                  child: (recipientAvatar == null || recipientAvatar.isEmpty)
+                                      ? const Icon(Icons.person, color: Colors.white)
+                                      : null,
                                 ),
                                 title: Text(recipient['username'] ?? 'User',
                                     style: const TextStyle(

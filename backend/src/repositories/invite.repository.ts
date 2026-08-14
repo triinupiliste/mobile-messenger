@@ -1,5 +1,6 @@
 import pool from '../config/database';
 import { Invite, InviteStatus } from '../models/invite.model';
+import { decryptText } from '../utils/encryption.util';
 
 export class InviteRepository {
     static async createInvite(senderId: string, receiverId: string): Promise<Invite> {
@@ -36,7 +37,13 @@ export class InviteRepository {
             WHERE i.receiver_id = $1 AND i.status = 'pending'
             ORDER BY i.created_at DESC`;
         const result = await pool.query(query, [userId]);
-        return result.rows;
+        return result.rows.map((row: any) => ({
+            ...row,
+            sender: {
+                ...row.sender,
+                avatar_url: row.sender?.avatar_url ? decryptText(row.sender.avatar_url) : row.sender?.avatar_url,
+            },
+        }));
     }
 
     static async getOutgoingInvitesForUser(userId: string) {
@@ -54,7 +61,13 @@ export class InviteRepository {
             WHERE i.sender_id = $1 AND i.status = 'pending'
             ORDER BY i.created_at DESC`;
         const result = await pool.query(query, [userId]);
-        return result.rows;
+        return result.rows.map((row: any) => ({
+            ...row,
+            recipient: {
+                ...row.recipient,
+                avatar_url: row.recipient?.avatar_url ? decryptText(row.recipient.avatar_url) : row.recipient?.avatar_url,
+            },
+        }));
     }
 
     static async updateInviteStatus(inviteId: string, status: InviteStatus): Promise<Invite | null> {

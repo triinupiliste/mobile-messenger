@@ -57,7 +57,7 @@ export function registerChatHandlers(io: Server) {
 
         // Handle Typing Indicators (Real-time typing cues)
         socket.on('typing', (data: { chatId: string; isTyping: boolean }) => {
-            socket.to(data.chatId).emit('user_typing', { userId, isTyping: data.isTyping });
+            socket.to(data.chatId).emit('user_typing', { chatId: data.chatId, userId, isTyping: data.isTyping });
         });
 
         // Handle Message Status Updates (Delivered / Read indicators)

@@ -157,14 +157,19 @@ class _SearchScreenState extends State<SearchScreen> {
             CircleAvatar(
               radius: 26,
               backgroundColor: const Color(0xFFFFE4E4),
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
+                  ? NetworkImage(user.avatarUrl!)
+                  : null,
+              child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
+                  ? Text(
+                      initial,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(

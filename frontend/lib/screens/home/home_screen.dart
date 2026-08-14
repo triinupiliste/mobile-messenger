@@ -15,14 +15,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _profileTabIndex = 3;
+
   int _currentIndex = 0;
   final _invitesKey = GlobalKey<InvitesScreenState>();
+  final _profileKey = GlobalKey<ProfileScreenState>();
 
   late final List<Widget> _screens = [
     const ChatListScreen(),
     InvitesScreen(key: _invitesKey),
     SearchScreen(onInviteSent: _refreshInvites),
-    const ProfileScreen(),
+    ProfileScreen(key: _profileKey),
   ];
 
   Future<void> _refreshInvites() async {
@@ -39,6 +42,14 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) async {
+          if (index == _currentIndex) return;
+
+          if (_currentIndex == _profileTabIndex) {
+            final canLeave =
+                await _profileKey.currentState?.confirmDiscardChangesIfNeeded() ?? true;
+            if (!canLeave) return;
+          }
+
           setState(() {
             _currentIndex = index;
           });

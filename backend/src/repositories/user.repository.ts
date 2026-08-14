@@ -9,6 +9,19 @@ export class UserRepository {
         return result.rows[0] || null;
     }
 
+    // Same lookup as above but excludes the given user, so a profile update can
+    // check for collisions with *other* accounts without flagging the user's
+    // own unchanged email/username as "already taken".
+    static async findByEmailOrUsernameExcludingUser(
+        email: string,
+        username: string,
+        excludeUserId: string,
+    ): Promise<User | null> {
+        const query = 'SELECT * FROM users WHERE (email = $1 OR username = $2) AND id != $3';
+        const result = await pool.query(query, [email, username, excludeUserId]);
+        return result.rows[0] || null;
+    }
+
     static async createUser(
         email: string,
         username: string,
@@ -57,27 +70,65 @@ export class UserRepository {
         if (!result.rows[0]) return null;
 
         const profile: Profile = result.rows[0];
-        // Decrypt sensitive about_me data fetched from DB
+        // Decrypt sensitive profile data fetched from DB
+        if (profile.avatar_url) {
+            profile.avatar_url = decryptText(profile.avatar_url);
+        }
         if (profile.about_me) {
             profile.about_me = decryptText(profile.about_me);
         }
         return profile;
     }
 
-    static async updateProfile(userId: string, avatarUrl?: string, aboutMe?: string): Promise<Profile> {
-        // Encrypt aboutMe before writing to DB as per data encryption requirements
+    static async updateProfile(
+        userId: string,
+        updates: { username?: string; email?: string; avatarUrl?: string; aboutMe?: string },
+    ): Promise<Profile> {
+        const { username, email, avatarUrl, aboutMe } = updates;
+        // Encrypt avatarUrl/aboutMe before writing to DB as per data encryption requirements
+        const encryptedAvatarUrl = avatarUrl ? encryptText(avatarUrl) : null;
         const encryptedAboutMe = aboutMe ? encryptText(aboutMe) : null;
 
-        const query = `
-            UPDATE profiles 
-            SET avatar_url = COALESCE($2, avatar_url), 
-                about_me = COALESCE($3, about_me)
-            WHERE user_id = $1 
-            RETURNING *`;
-        const result = await pool.query(query, [userId, avatarUrl, encryptedAboutMe]);
-        const profile: Profile = result.rows[0];
-        if (profile.about_me) profile.about_me = decryptText(profile.about_me);
-        return profile;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            await client.query(
+                `UPDATE users
+                 SET username = COALESCE($2, username),
+                     email = COALESCE($3, email)
+                 WHERE id = $1`,
+                [userId, username ?? null, email ?? null],
+            );
+
+            await client.query(
+                `UPDATE profiles
+                 SET avatar_url = COALESCE($2, avatar_url),
+                     about_me = COALESCE($3, about_me)
+                 WHERE user_id = $1`,
+                [userId, encryptedAvatarUrl, encryptedAboutMe],
+            );
+
+            const result = await client.query(
+                `SELECT u.id, u.id AS user_id, u.email, u.username, p.avatar_url, p.about_me
+                 FROM users u
+                 LEFT JOIN profiles p ON u.id = p.user_id
+                 WHERE u.id = $1`,
+                [userId],
+            );
+
+            await client.query('COMMIT');
+
+            const profile: Profile = result.rows[0];
+            if (profile.avatar_url) profile.avatar_url = decryptText(profile.avatar_url);
+            if (profile.about_me) profile.about_me = decryptText(profile.about_me);
+            return profile;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     static async searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
@@ -89,7 +140,10 @@ export class UserRepository {
             ORDER BY u.username
             LIMIT 10`;
         const result = await pool.query(query, [`%${searchTerm}%`, currentUserId]);
-        return result.rows;
+        return result.rows.map((row: any) => ({
+            ...row,
+            avatar_url: row.avatar_url ? decryptText(row.avatar_url) : row.avatar_url,
+        }));
     }
 
     static async existsById(userId: string): Promise<boolean> {

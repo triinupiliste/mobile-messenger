@@ -1,5 +1,6 @@
 class ChatModel {
   final String chatId;
+  final String contactId;
   final String contactName;
   final String? contactAvatar;
   final String? lastMessage;
@@ -11,6 +12,7 @@ class ChatModel {
 
   ChatModel({
     required this.chatId,
+    this.contactId = '',
     required this.contactName,
     this.contactAvatar,
     this.lastMessage,
@@ -24,6 +26,7 @@ class ChatModel {
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
       chatId: json['chat_id'] ?? '',
+      contactId: (json['contact_id'] ?? '').toString(),
       contactName: json['contact_username'] ?? 'User',
       contactAvatar: json['contact_avatar'],
       lastMessage: json['last_message_content'],

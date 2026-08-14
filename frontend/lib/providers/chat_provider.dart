@@ -52,6 +52,7 @@ class ChatProvider with ChangeNotifier {
           // Unread count is left as-is here; it's refreshed accurately via fetchChats().
           _chats[index] = ChatModel(
             chatId: _chats[index].chatId,
+            contactId: _chats[index].contactId,
             contactName: _chats[index].contactName,
             contactAvatar: _chats[index].contactAvatar,
             lastMessage: data['content'],

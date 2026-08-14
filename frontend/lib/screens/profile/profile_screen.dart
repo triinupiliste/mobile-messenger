@@ -10,10 +10,10 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _aboutMeController = TextEditingController();
@@ -21,6 +21,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _selectedAvatarFile;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isEditing = false;
+
+  // Snapshot taken when edit mode is entered, so we can tell whether anything
+  // actually changed and revert cleanly if the user discards their edits.
+  String _usernameAtEditStart = '';
+  String _emailAtEditStart = '';
+  String _aboutMeAtEditStart = '';
 
   @override
   void initState() {
@@ -50,25 +57,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _saveProfile() async {
+  void _enterEditMode() {
+    setState(() {
+      _isEditing = true;
+      _selectedAvatarFile = null;
+      _usernameAtEditStart = _usernameController.text;
+      _emailAtEditStart = _emailController.text;
+      _aboutMeAtEditStart = _aboutMeController.text;
+    });
+  }
+
+  bool get _hasUnsavedChanges =>
+      _selectedAvatarFile != null ||
+      _usernameController.text != _usernameAtEditStart ||
+      _emailController.text != _emailAtEditStart ||
+      _aboutMeController.text != _aboutMeAtEditStart;
+
+  Future<void> _handleClosePressed() async {
+    await confirmDiscardChangesIfNeeded();
+  }
+
+  /// Checks whether it's safe to navigate away from this screen right now.
+  ///
+  /// If not in edit mode, or in edit mode with no unsaved changes, this exits
+  /// edit mode (if needed) and returns true immediately. Otherwise it prompts
+  /// the user to save or discard their changes, returning true if it's safe
+  /// to proceed (changes were saved or discarded) or false if the user
+  /// cancelled (in which case the caller should stay on this screen).
+  Future<bool> confirmDiscardChangesIfNeeded() async {
+    if (!_isEditing) return true;
+
+    if (!_hasUnsavedChanges) {
+      setState(() => _isEditing = false);
+      return true;
+    }
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save changes?'),
+        content: const Text('You have unsaved changes. Do you want to save them before leaving?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'cancel'),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Discard', style: TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || choice == null || choice == 'cancel') return false;
+
+    if (choice == 'discard') {
+      setState(() {
+        _selectedAvatarFile = null;
+        _usernameController.text = _usernameAtEditStart;
+        _emailController.text = _emailAtEditStart;
+        _aboutMeController.text = _aboutMeAtEditStart;
+        _isEditing = false;
+      });
+      return true;
+    }
+
+    return _saveProfile();
+  }
+
+  Future<bool> _saveProfile() async {
     setState(() => _isSaving = true);
     try {
-      await ApiService.updateProfile(
-        avatarUrl: _avatarUrl,
+      String? avatarUrlToSave = _avatarUrl;
+      if (_selectedAvatarFile != null) {
+        avatarUrlToSave = await ApiService.uploadMedia(_selectedAvatarFile!);
+      }
+
+      final updated = await ApiService.updateProfile(
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
+        avatarUrl: avatarUrlToSave,
         aboutMe: _aboutMeController.text.trim(),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
-        );
-      }
+      if (!mounted) return true;
+      setState(() {
+        _usernameController.text = updated['username'] ?? _usernameController.text;
+        _emailController.text = updated['email'] ?? _emailController.text;
+        _avatarUrl = updated['avatar_url'] ?? avatarUrlToSave;
+        _aboutMeController.text = updated['about_me'] ?? _aboutMeController.text;
+        _selectedAvatarFile = null;
+        _isEditing = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully!')),
+      );
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update profile.')),
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
       }
+      return false;
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -93,77 +189,164 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit Profile' : 'My Profile'),
+        actions: [
+          if (_isEditing)
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Close',
+              onPressed: _isSaving ? null : _handleClosePressed,
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Edit Profile',
+              onPressed: _enterEditMode,
+            ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            AvatarPicker(
-              currentImageUrl: _avatarUrl,
-              selectedFile: _selectedAvatarFile,
-              onImageSelected: (file) {
-                setState(() {
-                  _selectedAvatarFile = file;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Supports JPEG & PNG (Max 5MB)',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
+            if (_isEditing)
+              AvatarPicker(
+                currentImageUrl: _avatarUrl,
+                selectedFile: _selectedAvatarFile,
+                onImageSelected: (file) {
+                  setState(() {
+                    _selectedAvatarFile = file;
+                  });
+                },
+              )
+            else
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                    ? NetworkImage(_avatarUrl!)
+                    : null,
+                child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                    ? const Icon(Icons.person, size: 50, color: AppColors.primary)
+                    : null,
+              ),
+            if (_isEditing) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Supports JPEG & PNG (Max 5MB)',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
             const SizedBox(height: 32),
-            TextField(
-              controller: _usernameController,
-              readOnly: true,
-              decoration: const InputDecoration(
-                  labelText: 'Username', prefixIcon: Icon(Icons.person)),
-            ),
+            if (_isEditing)
+              TextField(
+                controller: _usernameController,
+                decoration: const InputDecoration(
+                    labelText: 'Username', prefixIcon: Icon(Icons.person)),
+              )
+            else
+              _ProfileField(icon: Icons.person, label: 'Username', value: _usernameController.text),
             const SizedBox(height: 16),
-            TextField(
-              controller: _emailController,
-              readOnly: true,
-              decoration: const InputDecoration(
-                  labelText: 'Email', prefixIcon: Icon(Icons.email)),
-            ),
+            if (_isEditing)
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                    labelText: 'Email', prefixIcon: Icon(Icons.email)),
+              )
+            else
+              _ProfileField(icon: Icons.email, label: 'Email', value: _emailController.text),
             const SizedBox(height: 16),
-            TextField(
-              controller: _aboutMeController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'About Me',
-                alignLabelWithHint: true,
-                prefixIcon: Padding(
-                  padding: EdgeInsets.only(bottom: 48),
-                  child: Icon(Icons.info_outline),
+            if (_isEditing)
+              TextField(
+                controller: _aboutMeController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'About Me',
+                  alignLabelWithHint: true,
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.only(bottom: 48),
+                    child: Icon(Icons.info_outline),
+                  ),
                 ),
+              )
+            else
+              _ProfileField(
+                icon: Icons.info_outline,
+                label: 'About Me',
+                value: _aboutMeController.text.isEmpty ? 'No bio yet.' : _aboutMeController.text,
               ),
-            ),
             const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              child: _isSaving
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Save Changes',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                minimumSize: const Size(double.infinity, 50),
+            if (_isEditing)
+              ElevatedButton(
+                onPressed: _isSaving ? null : _saveProfile,
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Save Changes',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
-              icon: const Icon(Icons.logout),
-              label: const Text('Log Out',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              onPressed: () async {
-                await context.read<AuthProvider>().logout();
-              },
-            ),
+            if (!_isEditing) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                icon: const Icon(Icons.logout),
+                label: const Text('Log Out',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                onPressed: () async {
+                  await context.read<AuthProvider>().logout();
+                },
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// A read-only row used to display profile fields that can't be edited (or are
+// shown outside of edit mode), styled to look like a disabled input field.
+class _ProfileField extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _ProfileField({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.textSecondary.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(fontSize: 16, color: AppColors.textPrimary)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

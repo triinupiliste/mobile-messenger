@@ -66,9 +66,10 @@ export class ChatRepository {
 
         const result = await pool.query(query, [userId]);
         
-        // Decrypt text previews for the chat list
+        // Decrypt text previews and avatar URLs for the chat list
         return result.rows.map((row: any) => ({
             ...row,
+            contact_avatar: row.contact_avatar ? decryptText(row.contact_avatar) : row.contact_avatar,
             last_message_content: row.last_message_content ? decryptText(row.last_message_content) : null
         }));
     }
