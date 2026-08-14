@@ -46,7 +46,6 @@ frontend/
 
 
 what needs to be added:
-- app should have settings, where i can choose the theme of the app
-- default theme is sunset coral, we could also have calm forest or sth where everything is the same except shades of green
-- the default profile icon should be in the strongest theme color
 - saving media to phone
+- typing indicator does not show
+- archive chats

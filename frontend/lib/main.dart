@@ -9,10 +9,12 @@ import 'providers/chat_provider.dart';
 import 'providers/message_provider.dart';
 import 'providers/invite_provider.dart';
 import 'services/push_notification_service.dart';
+import 'services/theme_service.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'widgets/common/restart_widget.dart';
 
 void main() {
   // App-wide crash safety net. Individual screens already handle expected
@@ -42,9 +44,13 @@ void main() {
     // blank screen.
     ErrorWidget.builder = (FlutterErrorDetails details) => const _CrashFallbackScreen();
 
+    // Apply the user's previously chosen theme (if any) before the first
+    // frame, so the app doesn't flash the default theme then swap.
+    await ThemeService.loadSavedTheme();
+
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    runApp(const MyApp());
+    runApp(const RestartWidget(child: MyApp()));
   }, (error, stackTrace) {
     // Catches uncaught async errors (e.g. from Futures/Timers/socket
     // callbacks) that would otherwise crash the isolate.

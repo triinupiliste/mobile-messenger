@@ -526,12 +526,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           child: Wrap(
             children: [
               ListTile(
-                leading: const Icon(Icons.photo, color: AppColors.primary),
+                leading: Icon(Icons.photo, color: AppColors.primary),
                 title: const Text('Photo'),
                 onTap: () => Navigator.pop(context, 'image'),
               ),
               ListTile(
-                leading: const Icon(Icons.videocam, color: AppColors.primary),
+                leading: Icon(Icons.videocam, color: AppColors.primary),
                 title: const Text('Video'),
                 onTap: () => Navigator.pop(context, 'video'),
               ),
@@ -735,7 +735,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             child: Stack(
               children: [
                 _isLoadingHistory
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                     : _messages.isEmpty
                         ? const Center(child: Text('Say hello and start the conversation!', style: TextStyle(color: AppColors.textSecondary)))
                         : ScrollablePositionedList.builder(
@@ -803,7 +803,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             setState(() => _showJumpToLatestButton = false);
                             _scrollToBottom();
                           },
-                          child: const Padding(
+                          child: Padding(
                             padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -842,7 +842,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       children: [
                         Text(
                           'Replying to ${_replySenderLabel(_replyingTo!)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
                         ),
                         Text(
                           _replyPreviewText(_replyingTo!),
@@ -868,8 +868,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             child: Row(
               children: [
                 if (_isUploadingMedia)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: SizedBox(
                       width: 20,
                       height: 20,
@@ -878,12 +878,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   )
                 else ...[
                   IconButton(
-                    icon: const Icon(Icons.photo, color: AppColors.primary),
+                    icon: Icon(Icons.photo, color: AppColors.primary),
                     onPressed: () => _pickAndSendMedia(ImageSource.gallery),
                     tooltip: 'Send from Gallery',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.photo_camera, color: AppColors.primary),
+                    icon: Icon(Icons.photo_camera, color: AppColors.primary),
                     onPressed: () => _pickAndSendMedia(ImageSource.camera),
                     tooltip: 'Take Photo or Video',
                   ),
@@ -905,7 +905,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send, color: AppColors.primary),
+                  icon: Icon(Icons.send, color: AppColors.primary),
                   onPressed: () => _sendMessage(),
                 ),
               ],

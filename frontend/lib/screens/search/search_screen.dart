@@ -156,7 +156,7 @@ class _SearchScreenState extends State<SearchScreen> {
           color: AppColors.primary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Text(
+        child: Text(
           'Friends',
           style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
         ),
@@ -248,7 +248,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchBody() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
@@ -305,7 +305,7 @@ class _SearchScreenState extends State<SearchScreen> {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'Search by username or email...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                prefixIcon: Icon(Icons.search, color: AppColors.primary),
                 suffixIcon: _searchController.text.isEmpty
                     ? null
                     : IconButton(

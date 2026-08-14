@@ -83,7 +83,7 @@ class InvitesScreenState extends State<InvitesScreen> {
           ),
         ),
         body: isLoading
-            ? const Center(
+            ? Center(
                 child: CircularProgressIndicator(color: AppColors.primary))
             : TabBarView(
                 children: [

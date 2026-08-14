@@ -71,7 +71,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       body: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
           if (chatProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
 
           final filteredChats = chatProvider.chats.where((chat) {

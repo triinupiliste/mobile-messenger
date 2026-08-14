@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../../widgets/profile/avatar_picker.dart';
+import '../settings/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -184,7 +185,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
           body: Center(
               child: CircularProgressIndicator(color: AppColors.primary)));
     }
@@ -199,12 +200,22 @@ class ProfileScreenState extends State<ProfileScreen> {
               tooltip: 'Close',
               onPressed: _isSaving ? null : _handleClosePressed,
             )
-          else
+          else ...[
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.edit),
               tooltip: 'Edit Profile',
               onPressed: _enterEditMode,
             ),
+          ],
         ],
       ),
       body: SingleChildScrollView(
@@ -291,8 +302,8 @@ class ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary),
                   minimumSize: const Size(double.infinity, 50),
                 ),
                 icon: const Icon(Icons.logout),

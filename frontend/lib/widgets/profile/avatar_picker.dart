@@ -56,7 +56,7 @@ class AvatarPicker extends StatelessWidget {
           child: Wrap(
             children: <Widget>[
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                leading: Icon(Icons.photo_library, color: AppColors.primary),
                 title: const Text('Pick from Gallery'),
                 onTap: () {
                   Navigator.of(context).pop();
@@ -64,7 +64,7 @@ class AvatarPicker extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_camera, color: AppColors.primary),
+                leading: Icon(Icons.photo_camera, color: AppColors.primary),
                 title: const Text('Take a Photo'),
                 onTap: () {
                   Navigator.of(context).pop();
@@ -106,7 +106,7 @@ class AvatarPicker extends StatelessWidget {
             right: 0,
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),

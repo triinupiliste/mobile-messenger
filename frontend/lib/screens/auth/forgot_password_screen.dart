@@ -58,7 +58,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.lock_reset_rounded, size: 72, color: AppColors.primary),
+                Icon(Icons.lock_reset_rounded, size: 72, color: AppColors.primary),
                 const SizedBox(height: 16),
                 const Text(
                   'Reset your password',
@@ -108,7 +108,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Back to Login', style: TextStyle(color: AppColors.primary)),
+                  child: Text('Back to Login', style: TextStyle(color: AppColors.primary)),
                 ),
               ],
             ),

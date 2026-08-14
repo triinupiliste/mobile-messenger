@@ -227,7 +227,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Opacity(
                 opacity: replyIconOpacity,
-                child: const Icon(Icons.reply, color: AppColors.primary),
+                child: Icon(Icons.reply, color: AppColors.primary),
               ),
             ),
           ),
