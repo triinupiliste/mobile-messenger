@@ -1,3 +1,6 @@
+-- NOTE: init.sql now creates `verification_token_expires` directly, so this
+-- migration is only needed for a database created before that column existed.
+-- Safe to re-run (uses IF NOT EXISTS); not required for a fresh clone.
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS verification_token_expires TIMESTAMP;
 

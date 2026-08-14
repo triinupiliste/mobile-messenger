@@ -12,6 +12,7 @@ CREATE TABLE users (
     verification_token_expires TIMESTAMP,
     reset_token VARCHAR(255),
     reset_token_expires TIMESTAMP,
+    fcm_token TEXT, -- Firebase Cloud Messaging token for push notifications
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
