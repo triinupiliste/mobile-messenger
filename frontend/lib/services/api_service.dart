@@ -1,16 +1,24 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../config/server_config.dart';
 import 'storage_service.dart';
 
 class ApiService {
-  // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator or Web
-  static const String baseUrl = 'http://127.0.0.1:5000/api';
+  static const String baseUrl = '$serverBaseUrl/api';
+
+  // ngrok's free tier serves an HTML interstitial warning page to any
+  // non-browser request unless this header is present, which would
+  // otherwise break JSON parsing for every API call.
+  static const Map<String, String> _ngrokHeader = {
+    'ngrok-skip-browser-warning': 'true',
+  };
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await StorageService.getToken();
     return {
       'Content-Type': 'application/json',
+      ..._ngrokHeader,
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -20,7 +28,7 @@ class ApiService {
       String username, String email, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/register'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', ..._ngrokHeader},
       body: jsonEncode(
           {'username': username, 'email': email, 'password': password}),
     );
@@ -31,7 +39,7 @@ class ApiService {
       String email, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', ..._ngrokHeader},
       body: jsonEncode({'email': email, 'password': password}),
     );
     final data = jsonDecode(response.body);
@@ -45,7 +53,7 @@ class ApiService {
       String email) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/resend-verification'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', ..._ngrokHeader},
       body: jsonEncode({'email': email.trim()}),
     );
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -58,7 +66,7 @@ class ApiService {
   static Future<Map<String, dynamic>> requestPasswordReset(String email) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/request-password-reset'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', ..._ngrokHeader},
       body: jsonEncode({'email': email.trim()}),
     );
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -127,6 +135,7 @@ class ApiService {
       Uri.parse('$baseUrl/users/search?q=${Uri.encodeComponent(query.trim())}'),
       headers: {
         'Content-Type': 'application/json',
+        ..._ngrokHeader,
         'Authorization': 'Bearer $token',
       },
     ).timeout(
@@ -155,6 +164,7 @@ class ApiService {
       Uri.parse('$baseUrl/invites'), // Matches backend router.post('/')
       headers: {
         'Content-Type': 'application/json',
+        ..._ngrokHeader,
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({
@@ -174,6 +184,7 @@ class ApiService {
       Uri.parse('$baseUrl/invites'), // Matches backend router.get('/')
       headers: {
         'Content-Type': 'application/json',
+        ..._ngrokHeader,
         'Authorization': 'Bearer $token',
       },
     );
@@ -198,6 +209,7 @@ class ApiService {
       Uri.parse('$baseUrl/invites/respond'),
       headers: {
         'Content-Type': 'application/json',
+        ..._ngrokHeader,
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(
@@ -242,6 +254,25 @@ class ApiService {
     );
   }
 
+  static Future<void> setChatMuted(String chatId, bool isMuted) async {
+    final headers = await _getHeaders();
+    await http.patch(
+      Uri.parse('$baseUrl/chats/$chatId/mute'),
+      headers: headers,
+      body: jsonEncode({'isMuted': isMuted}),
+    );
+  }
+
+  // --- PUSH NOTIFICATIONS ---
+  static Future<void> registerFcmToken(String fcmToken) async {
+    final headers = await _getHeaders();
+    await http.put(
+      Uri.parse('$baseUrl/users/fcm-token'),
+      headers: headers,
+      body: jsonEncode({'fcmToken': fcmToken}),
+    );
+  }
+
   // Uploads a local media file (image, video, or voice note) and returns its
   // publicly reachable URL so it can be sent as a message's mediaUrl.
   static Future<String> uploadMedia(File file) async {
@@ -250,6 +281,7 @@ class ApiService {
       'POST',
       Uri.parse('$baseUrl/media/upload'),
     );
+    request.headers.addAll(_ngrokHeader);
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }

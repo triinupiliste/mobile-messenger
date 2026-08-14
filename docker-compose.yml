@@ -19,6 +19,7 @@ services:
       - "5000:5000"
     volumes:
       - uploads_data:/app/uploads
+      - ./backend/secrets:/app/secrets:ro
     environment:
       - PORT=5000
       - DB_HOST=postgres
@@ -32,6 +33,7 @@ services:
       - BREVO_API_KEY=${BREVO_API_KEY:-}
       - MAIL_FROM=${MAIL_FROM:-}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Mobile Messenger}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-service-account.json
     depends_on:
       - postgres
 

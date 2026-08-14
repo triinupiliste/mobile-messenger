@@ -81,4 +81,28 @@ export class ChatRepository {
             WHERE chat_id = $1 AND user_id = $2`;
         await pool.query(query, [chatId, userId, isArchived]);
     }
+
+    static async setChatMutedStatus(chatId: string, userId: string, isMuted: boolean): Promise<void> {
+        const query = `
+            UPDATE chat_participants 
+            SET is_muted = $3 
+            WHERE chat_id = $1 AND user_id = $2`;
+        await pool.query(query, [chatId, userId, isMuted]);
+    }
+
+    // Used to decide who to push a "new message" notification to: every OTHER
+    // participant in the chat, along with whether THEY have this specific
+    // chat muted and their FCM device token (if any).
+    static async getOtherParticipantsForPush(
+        chatId: string,
+        excludeUserId: string,
+    ): Promise<{ user_id: string; is_muted: boolean; fcm_token: string | null }[]> {
+        const query = `
+            SELECT cp.user_id, cp.is_muted, u.fcm_token
+            FROM chat_participants cp
+            JOIN users u ON u.id = cp.user_id
+            WHERE cp.chat_id = $1 AND cp.user_id != $2`;
+        const result = await pool.query(query, [chatId, excludeUserId]);
+        return result.rows;
+    }
 }

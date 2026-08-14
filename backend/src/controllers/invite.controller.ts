@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { InviteRepository } from '../repositories/invite.repository';
 import { ChatRepository } from '../repositories/chat.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { PushService } from '../services/push.service';
 
 export class InviteController {
     static async sendInvite(req: Request, res: Response): Promise<void> {
@@ -32,6 +33,23 @@ export class InviteController {
 
             const invite = await InviteRepository.createInvite(senderId, receiverId);
             res.status(201).json({ message: 'Chat invite sent successfully.', invite });
+
+            // Push-notify the receiver — failures here must not affect the response above.
+            try {
+                const [sender, receiver] = await Promise.all([
+                    UserRepository.getPushInfoById(senderId),
+                    UserRepository.getPushInfoById(receiverId),
+                ]);
+                if (receiver?.fcm_token) {
+                    await PushService.sendToToken(receiver.fcm_token, {
+                        title: 'New chat invite',
+                        body: `${sender?.username || 'Someone'} has sent you an invite`,
+                        data: { type: 'invite' },
+                    });
+                }
+            } catch (pushError) {
+                console.error('Failed to send invite push notification:', pushError);
+            }
         } catch (error) {
             res.status(500).json({ error: 'Failed to send chat invite.' });
         }

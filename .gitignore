@@ -2,6 +2,10 @@
 .env
 backend/.env
 
+# Firebase credentials (push notifications) — never commit these
+backend/secrets/*.json
+frontend/android/app/google-services.json
+
 # Backend generated/install artifacts
 backend/dist/
 backend/node_modules/

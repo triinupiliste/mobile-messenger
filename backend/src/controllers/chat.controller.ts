@@ -27,6 +27,19 @@ export class ChatController {
         }
     }
 
+    static async toggleMuteChat(req: Request, res: Response): Promise<string | void> {
+        try {
+            const userId = (req as any).user.userId;
+            const chatId = req.params.chatId as string;
+            const { isMuted } = req.body;
+
+            await ChatRepository.setChatMutedStatus(chatId, userId, isMuted);
+            res.status(200).json({ message: `Chat ${isMuted ? 'muted' : 'unmuted'} successfully.` });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to update chat mute state.' });
+        }
+    }
+
     static async getChatMessages(req: Request, res: Response): Promise<string | void> {
         try {
             const chatId = req.params.chatId as string; // <-- Explicitly cast as string

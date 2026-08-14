@@ -10,6 +10,10 @@ class ChatProvider with ChangeNotifier {
   List<ChatModel> get chats => _chats;
   bool get isLoading => _isLoading;
 
+  // Total unread message count across all chats, used for the badge on the
+  // bottom nav's Chats icon.
+  int get totalUnreadCount => _chats.fold(0, (sum, c) => sum + c.unreadCount);
+
   ChatProvider() {
     _initGlobalSocketListener();
   }

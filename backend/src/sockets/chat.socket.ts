@@ -1,6 +1,26 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { MessageRepository } from '../repositories/message.repository';
+import { ChatRepository } from '../repositories/chat.repository';
+import { UserRepository } from '../repositories/user.repository';
+import { PushService } from '../services/push.service';
+
+function buildMessagePreview(content: string | null | undefined, mediaType: string): string {
+    switch (mediaType) {
+        case 'image':
+            return 'Sent a photo';
+        case 'video':
+            return 'Sent a video';
+        case 'audio':
+            return 'Sent a voice message';
+        default: {
+            // One-line preview — the OS notification will further truncate/ellipsize
+            // to whatever fits on screen, so we just strip newlines here.
+            const flat = (content || '').replace(/\s+/g, ' ').trim();
+            return flat || 'Sent a message';
+        }
+    }
+}
 
 export function registerChatHandlers(io: Server) {
     // 1. Socket Authentication Middleware with explicit 'next' type
@@ -50,6 +70,32 @@ export function registerChatHandlers(io: Server) {
                 
                 // Broadcast the message to all participants in the chat room
                 io.to(chatId).emit('receive_message', savedMessage);
+
+                // Push-notify every other participant who isn't muted on this chat.
+                try {
+                    const [sender, otherParticipants] = await Promise.all([
+                        UserRepository.getPushInfoById(userId),
+                        ChatRepository.getOtherParticipantsForPush(chatId, userId),
+                    ]);
+                    const senderName = sender?.username || 'Someone';
+                    const previewBody = buildMessagePreview(savedMessage.content, savedMessage.media_type);
+
+                    for (const participant of otherParticipants) {
+                        if (participant.is_muted || !participant.fcm_token) continue;
+                        await PushService.sendToToken(participant.fcm_token, {
+                            title: senderName,
+                            body: previewBody,
+                            data: {
+                                type: 'message',
+                                chatId,
+                                contactId: userId,
+                                contactName: senderName,
+                            },
+                        });
+                    }
+                } catch (pushError) {
+                    console.error('Failed to send message push notification:', pushError);
+                }
             } catch (error) {
                 socket.emit('error_feedback', { message: 'Failed to send message.' });
             }

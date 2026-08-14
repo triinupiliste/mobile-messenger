@@ -8,6 +8,7 @@ export interface User {
     verification_token_expires?: Date | null;
     reset_token?: string | null;
     reset_token_expires?: Date | null;
+    fcm_token?: string | null;
     created_at: Date;
 }
 

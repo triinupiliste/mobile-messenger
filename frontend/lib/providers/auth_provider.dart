@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/socket_service.dart';
+import '../services/push_notification_service.dart';
 
 class AuthProvider with ChangeNotifier {
   bool _isAuthenticated = false;
@@ -28,6 +29,7 @@ class AuthProvider with ChangeNotifier {
       _isAuthenticated = token != null;
       if (_isAuthenticated) {
         await SocketService.initSocket();
+        await PushNotificationService.init();
       }
     } catch (e) {
       _isAuthenticated = false;
@@ -52,6 +54,7 @@ class AuthProvider with ChangeNotifier {
         // CRITICAL: Save the token securely so it persists across app restarts!
         await StorageService.setToken(res['token']);
         await SocketService.initSocket();
+        await PushNotificationService.init();
 
         _isAuthenticated = true;
         _emailVerificationRequired = false;
@@ -118,6 +121,12 @@ class AuthProvider with ChangeNotifier {
       SocketService.disconnect();
     } catch (e) {
       print('Error disconnecting socket: $e');
+    }
+
+    try {
+      await PushNotificationService.clearToken();
+    } catch (e) {
+      print('Error clearing push notification token: $e');
     }
   }
 }

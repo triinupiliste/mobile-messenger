@@ -43,9 +43,26 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _showJumpToLatestButton = false;
   String? _currentUserId;
 
+  // Stored so dispose() can unregister exactly these callbacks — without this,
+  // reopening the same chat repeatedly stacks duplicate listeners on the
+  // shared socket singleton, which stops new events from reliably reaching
+  // the currently-visible screen (an earlier, already-disposed listener can
+  // throw and prevent later listeners for the same event from running).
+  late final void Function(dynamic) _onConnect;
+  late final void Function(dynamic) _onReceiveMessage;
+  late final void Function(dynamic) _onUserTyping;
+  late final void Function(dynamic) _onMessageEdited;
+  late final void Function(dynamic) _onMessageDeleted;
+  late final void Function(dynamic) _onMessagesRead;
+  late final void Function(dynamic) _onErrorFeedback;
+
   @override
   void initState() {
     super.initState();
+
+    // Mark this chat as the one currently on screen, so a foreground push
+    // notification for it can be suppressed (already visible live here).
+    ActiveChatTracker.setActiveChat(widget.chatId);
 
     // 1. Join the specific chat room via socket
     SocketService.joinChat(widget.chatId);
@@ -53,29 +70,32 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // Re-join whenever the socket (re)connects — e.g. after the app is backgrounded
     // and the connection drops — otherwise this screen stops receiving real-time
     // updates for its own sent messages until it's reopened.
-    SocketService.socket.on('connect', (_) {
+    _onConnect = (_) {
       SocketService.joinChat(widget.chatId);
-    });
+    };
+    SocketService.on('connect', _onConnect);
 
     // 2. Listen for incoming real-time socket events
-    SocketService.socket.on('receive_message', (data) {
+    _onReceiveMessage = (data) {
       if (data['chat_id'] == widget.chatId) {
         setState(() {
           _messages.add(Map<String, dynamic>.from(data));
         });
         _scrollToBottom();
       }
-    });
+    };
+    SocketService.on('receive_message', _onReceiveMessage);
 
-    SocketService.socket.on('user_typing', (data) {
+    _onUserTyping = (data) {
       if (data['chatId'] == widget.chatId) {
         setState(() {
           _isRemoteUserTyping = data['isTyping'];
         });
       }
-    });
+    };
+    SocketService.on('user_typing', _onUserTyping);
 
-    SocketService.socket.on('message_edited', (data) {
+    _onMessageEdited = (data) {
       setState(() {
         final index = _messages.indexWhere((m) => m['id'] == data['id']);
         if (index != -1) {
@@ -83,9 +103,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           _messages[index]['is_edited'] = true;
         }
       });
-    });
+    };
+    SocketService.on('message_edited', _onMessageEdited);
 
-    SocketService.socket.on('message_deleted', (data) {
+    _onMessageDeleted = (data) {
       setState(() {
         final index = _messages.indexWhere((m) => m['id'] == data['id']);
         if (index != -1) {
@@ -94,11 +115,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           _messages[index]['is_deleted'] = true;
         }
       });
-    });
+    };
+    SocketService.on('message_deleted', _onMessageDeleted);
 
     // When the other participant reads this chat, mark my sent messages as 'read'
     // so the delivery ticks update in real time.
-    SocketService.socket.on('messages_read', (data) {
+    _onMessagesRead = (data) {
       if (data['chatId'] != widget.chatId) return;
       // If I'm the one who just read the chat, my own sent messages weren't affected.
       if (_currentUserId != null && data['readerId'] == _currentUserId) return;
@@ -109,14 +131,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           }
         }
       });
-    });
+    };
+    SocketService.on('messages_read', _onMessagesRead);
 
-    SocketService.socket.on('error_feedback', (data) {
+    _onErrorFeedback = (data) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(data['message']?.toString() ?? 'Something went wrong.')),
       );
-    });
+    };
+    SocketService.on('error_feedback', _onErrorFeedback);
 
     // Track which messages are actually on screen so we can show a "more
     // messages" pill whenever there's an unread message hidden below the fold.
@@ -480,6 +504,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   @override
   void dispose() {
+    if (ActiveChatTracker.isChatActive(widget.chatId)) {
+      ActiveChatTracker.setActiveChat(null);
+    }
+    SocketService.off('connect', _onConnect);
+    SocketService.off('receive_message', _onReceiveMessage);
+    SocketService.off('user_typing', _onUserTyping);
+    SocketService.off('message_edited', _onMessageEdited);
+    SocketService.off('message_deleted', _onMessageDeleted);
+    SocketService.off('messages_read', _onMessagesRead);
+    SocketService.off('error_feedback', _onErrorFeedback);
     _itemPositionsListener.itemPositions.removeListener(_handleItemPositionsChanged);
     _messageController.dispose();
     _typingTimer?.cancel();
@@ -505,9 +539,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             onSelected: (value) {
               if (value == 'mute') {
                 NotificationSettingsService.toggleMuteChat(widget.chatId);
+                final nowMuted = NotificationSettingsService.isChatMuted(widget.chatId);
+                ApiService.setChatMuted(widget.chatId, nowMuted);
                 setState(() {});
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(NotificationSettingsService.isChatMuted(widget.chatId) ? 'Chat muted' : 'Chat unmuted')),
+                  SnackBar(content: Text(nowMuted ? 'Chat muted' : 'Chat unmuted')),
                 );
               } else if (value == 'view_profile') {
                 _viewProfile();

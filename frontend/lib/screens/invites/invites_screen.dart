@@ -1,52 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
-import '../../services/api_service.dart';
+import '../../providers/invite_provider.dart';
 import '../../theme/app_colors.dart';
 
 class InvitesScreen extends StatefulWidget {
-  const InvitesScreen({super.key});
+  // When true (e.g. opened by tapping an invite push notification), this
+  // screen marks incoming invites as seen as soon as it loads, instead of
+  // relying on the bottom-nav tap handler (which only runs for the
+  // persistent IndexedStack-embedded instance).
+  final bool markSeenOnOpen;
+
+  const InvitesScreen({super.key, this.markSeenOnOpen = false});
 
   @override
   State<InvitesScreen> createState() => InvitesScreenState();
 }
 
 class InvitesScreenState extends State<InvitesScreen> {
-  List<dynamic> _incoming = [];
-  List<dynamic> _outgoing = [];
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadInvites();
+    _load();
   }
 
-  Future<void> _loadInvites() async {
-    setState(() => _isLoading = true);
-    try {
-      final data = await ApiService.getInvitations();
-      if (!mounted) return;
-      setState(() {
-        _incoming = data['incoming'] ?? [];
-        _outgoing = data['outgoing'] ?? [];
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load invitations: $e')),
-      );
+  Future<void> _load() async {
+    await context.read<InviteProvider>().fetchInvites();
+    if (widget.markSeenOnOpen && mounted) {
+      context.read<InviteProvider>().markIncomingSeen();
     }
   }
 
-  Future<void> refresh() => _loadInvites();
+  Future<void> refresh() => context.read<InviteProvider>().fetchInvites();
 
   Future<void> _respond(String inviteId, String status) async {
     try {
-      await ApiService.respondToInvite(inviteId, status);
-      _loadInvites();
+      await context.read<InviteProvider>().respondToInvite(inviteId, status);
       if (status == 'accepted' && mounted) {
         // A new chat was created on the backend; refresh the chat list so it appears immediately.
         context.read<ChatProvider>().fetchChats();
@@ -67,6 +56,11 @@ class InvitesScreenState extends State<InvitesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final inviteProvider = context.watch<InviteProvider>();
+    final incoming = inviteProvider.incoming;
+    final outgoing = inviteProvider.outgoing;
+    final isLoading = inviteProvider.isLoading && incoming.isEmpty && outgoing.isEmpty;
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -87,21 +81,21 @@ class InvitesScreenState extends State<InvitesScreen> {
             ],
           ),
         ),
-        body: _isLoading
+        body: isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.primary))
             : TabBarView(
                 children: [
                   // Incoming Tab
-                  _incoming.isEmpty
+                  incoming.isEmpty
                       ? const Center(
                           child: Text('No incoming invitations',
                               style: TextStyle(color: AppColors.textSecondary)))
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
-                          itemCount: _incoming.length,
+                          itemCount: incoming.length,
                           itemBuilder: (context, index) {
-                            final invite = _incoming[index];
+                            final invite = incoming[index];
                             final sender = invite['sender'] ?? {};
                             final senderAvatar = sender['avatar_url']?.toString();
                             return Card(
@@ -148,15 +142,15 @@ class InvitesScreenState extends State<InvitesScreen> {
                           },
                         ),
                   // Outgoing Tab
-                  _outgoing.isEmpty
+                  outgoing.isEmpty
                       ? const Center(
                           child: Text('No outgoing invitations',
                               style: TextStyle(color: AppColors.textSecondary)))
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
-                          itemCount: _outgoing.length,
+                          itemCount: outgoing.length,
                           itemBuilder: (context, index) {
-                            final invite = _outgoing[index];
+                            final invite = outgoing[index];
                             final recipient = invite['recipient'] ?? {};
                             final recipientAvatar = recipient['avatar_url']?.toString();
                             return Card(

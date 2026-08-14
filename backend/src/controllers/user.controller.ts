@@ -117,4 +117,23 @@ export class UserController {
             res.status(500).json({ error: 'Failed to search users.' });
         }
     }
+
+    // Saves/refreshes this device's Firebase Cloud Messaging token so the
+    // backend can push notifications (new messages, new invites) to it.
+    static async updateFcmToken(req: Request, res: Response): Promise<void> {
+        try {
+            const userId = (req as any).user.userId;
+            const { fcmToken } = req.body;
+
+            if (!fcmToken || typeof fcmToken !== 'string') {
+                res.status(400).json({ error: 'fcmToken is required.' });
+                return;
+            }
+
+            await UserRepository.updateFcmToken(userId, fcmToken);
+            res.status(200).json({ message: 'FCM token saved.' });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to save FCM token.' });
+        }
+    }
 }

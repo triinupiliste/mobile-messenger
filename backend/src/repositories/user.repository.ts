@@ -151,6 +151,21 @@ export class UserRepository {
         return result.rowCount === 1;
     }
 
+    static async updateFcmToken(userId: string, fcmToken: string): Promise<void> {
+        await pool.query('UPDATE users SET fcm_token = $2 WHERE id = $1', [userId, fcmToken]);
+    }
+
+    // Lightweight lookup used to build push notification payloads (sender's
+    // display name, recipient's device token) without pulling/decrypting a
+    // full profile.
+    static async getPushInfoById(userId: string): Promise<{ username: string; fcm_token: string | null } | null> {
+        const result = await pool.query(
+            'SELECT username, fcm_token FROM users WHERE id = $1',
+            [userId],
+        );
+        return result.rows[0] || null;
+    }
+
     static async verifyEmail(verificationToken: string): Promise<User | null> {
         const query = `
             UPDATE users
