@@ -46,6 +46,5 @@ frontend/
 
 
 what needs to be added:
-- saving media to phone
 - typing indicator does not show
 - archive chats

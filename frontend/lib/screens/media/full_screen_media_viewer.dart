@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../services/api_service.dart';
+import '../../services/media_save_service.dart';
 
-/// Full-screen overlay for viewing a sent photo or video at full size.
-/// Images support pinch-to-zoom; videos play inline with basic controls.
-class FullScreenMediaViewer extends StatelessWidget {
+/// Full-screen overlay for viewing a sent or received photo/video at full
+/// size. Images support pinch-to-zoom; videos play inline with basic
+/// controls. Either can be saved to the device's photo gallery.
+class FullScreenMediaViewer extends StatefulWidget {
   final String mediaUrl;
   final String mediaType; // 'image' or 'video'
 
@@ -26,19 +28,47 @@ class FullScreenMediaViewer extends StatelessWidget {
   }
 
   @override
+  State<FullScreenMediaViewer> createState() => _FullScreenMediaViewerState();
+}
+
+class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
+  bool _isSaving = false;
+
+  Future<void> _handleSave() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    final result = await MediaSaveService.saveNetworkMedia(
+      url: widget.mediaUrl,
+      mediaType: widget.mediaType,
+    );
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    final message = switch (result) {
+      MediaSaveResult.saved =>
+        '${widget.mediaType == 'video' ? 'Video' : 'Photo'} saved to gallery',
+      MediaSaveResult.permissionDenied => 'Permission to access the gallery was denied',
+      MediaSaveResult.failed => 'Failed to save. Please try again.',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           Center(
-            child: mediaType == 'video'
-                ? _FullScreenVideoPlayer(url: mediaUrl)
+            child: widget.mediaType == 'video'
+                ? _FullScreenVideoPlayer(url: widget.mediaUrl)
                 : InteractiveViewer(
                     minScale: 1,
                     maxScale: 4,
                     child: Image.network(
-                      mediaUrl,
+                      widget.mediaUrl,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.broken_image,
@@ -53,12 +83,28 @@ class FullScreenMediaViewer extends StatelessWidget {
                   ),
           ),
           SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                _isSaving
+                    ? const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.download_rounded, color: Colors.white, size: 28),
+                        tooltip: 'Save to gallery',
+                        onPressed: _handleSave,
+                      ),
+              ],
             ),
           ),
         ],
