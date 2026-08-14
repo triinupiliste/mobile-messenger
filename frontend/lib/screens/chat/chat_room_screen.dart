@@ -51,6 +51,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _isUploadingMedia = false;
   bool _showJumpToLatestButton = false;
   String? _currentUserId;
+  Map<String, dynamic>? _replyingTo;
 
   // Stored so dispose() can unregister exactly these callbacks — without this,
   // reopening the same chat repeatedly stacks duplicate listeners on the
@@ -332,11 +333,43 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
+  // Sets a message as the target of the next send, shown as a preview above
+  // the input bar (and rendered as a quoted excerpt on the sent message).
+  void _startReply(Map<String, dynamic> msg) {
+    if ((msg['id'] ?? '').toString().isEmpty) return; // don't reply to a still-sending/failed message
+    setState(() => _replyingTo = msg);
+  }
+
+  void _cancelReply() {
+    setState(() => _replyingTo = null);
+  }
+
+  String _replySenderLabel(Map<String, dynamic> replyTo) {
+    return replyTo['sender_id'] == _currentUserId ? 'You' : widget.contactName;
+  }
+
+  String _replyPreviewText(Map<String, dynamic> replyTo) {
+    if (replyTo['is_deleted'] == true) return 'This message was deleted';
+    final content = (replyTo['content'] ?? '').toString();
+    if (content.isNotEmpty) return content;
+    switch (replyTo['media_type']) {
+      case 'image':
+        return 'Photo';
+      case 'video':
+        return 'Video';
+      case 'audio':
+        return 'Voice message';
+      default:
+        return '';
+    }
+  }
+
   void _sendMessage({String? mediaUrl, String mediaType = 'text'}) {
     final content = _messageController.text.trim();
     if (content.isEmpty && mediaUrl == null) return;
 
     final tempId = 'temp_${DateTime.now().microsecondsSinceEpoch}';
+    final replyingTo = _replyingTo;
 
     setState(() {
       _messages.add({
@@ -350,8 +383,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         'status': 'sending',
         'is_edited': false,
         'is_deleted': false,
+        'reply_to_id': replyingTo?['id'],
+        'reply_to': replyingTo == null
+            ? null
+            : {
+                'id': replyingTo['id'],
+                'sender_id': replyingTo['sender_id'],
+                'content': replyingTo['content'],
+                'media_type': replyingTo['media_type'],
+                'is_deleted': replyingTo['is_deleted'] ?? false,
+              },
         'created_at': DateTime.now().toIso8601String(),
       });
+      _replyingTo = null;
     });
     _scrollToBottom();
 
@@ -361,6 +405,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       mediaUrl: mediaUrl,
       mediaType: mediaType,
       tempId: tempId,
+      replyToId: replyingTo?['id']?.toString(),
     );
     _startSendTimeout(tempId);
 
@@ -399,6 +444,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       mediaUrl: msg['media_url'],
       mediaType: msg['media_type'] ?? 'text',
       tempId: tempId,
+      replyToId: msg['reply_to_id']?.toString(),
     );
     _startSendTimeout(tempId);
   }
@@ -722,6 +768,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                 timestamp: _formatTimestamp(msg['created_at']),
                                 status: status,
                                 isEdited: msg['is_edited'] ?? false,
+                                replyTo: msg['reply_to'] is Map
+                                    ? Map<String, dynamic>.from(msg['reply_to'] as Map)
+                                    : null,
+                                replyToSenderName: msg['reply_to'] is Map
+                                    ? _replySenderLabel(Map<String, dynamic>.from(msg['reply_to'] as Map))
+                                    : null,
                                 onEdit: (isMe && !isDeleted && isConfirmed)
                                     ? () => _editMessage(msg['id'] ?? '', msg['content'] ?? '')
                                     : null,
@@ -731,6 +783,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                 onRetry: (isMe && status == 'failed')
                                     ? () => _retryMessage(msg['_tempId'] as String)
                                     : null,
+                                onReply: (isConfirmed && !isDeleted) ? () => _startReply(msg) : null,
                               );
                             },
                           ),
@@ -771,6 +824,42 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               ],
             ),
           ),
+
+          if (_replyingTo != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+              ),
+              child: Row(
+                children: [
+                  Container(width: 3, height: 32, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Replying to ${_replySenderLabel(_replyingTo!)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                        ),
+                        Text(
+                          _replyPreviewText(_replyingTo!),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: _cancelReply,
+                  ),
+                ],
+              ),
+            ),
 
           // Message Input Bar
           Container(

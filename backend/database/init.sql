@@ -64,6 +64,7 @@ CREATE TABLE messages (
     status VARCHAR(20) DEFAULT 'sent', -- 'sent', 'delivered', 'read'
     is_edited BOOLEAN DEFAULT FALSE,
     is_deleted BOOLEAN DEFAULT FALSE,
+    reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL, -- Message being replied to, if any
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

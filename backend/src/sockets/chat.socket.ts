@@ -55,9 +55,9 @@ export function registerChatHandlers(io: Server) {
         });
 
         // Handle sending messages (Text, Images, Videos, Audio)
-        socket.on('send_message', async (data: { chatId: string; content?: string; mediaUrl?: string; mediaType?: any; tempId?: string }) => {
+        socket.on('send_message', async (data: { chatId: string; content?: string; mediaUrl?: string; mediaType?: any; tempId?: string; replyToId?: string }) => {
             try {
-                const { chatId, content, mediaUrl, mediaType, tempId } = data;
+                const { chatId, content, mediaUrl, mediaType, tempId, replyToId } = data;
                 
                 // Save message to database and encrypt content
                 const savedMessage = await MessageRepository.saveMessage(
@@ -65,7 +65,8 @@ export function registerChatHandlers(io: Server) {
                     userId, 
                     content, 
                     mediaUrl, 
-                    mediaType || 'text'
+                    mediaType || 'text',
+                    replyToId,
                 );
                 
                 // Broadcast the message to all participants in the chat room. tempId is

@@ -1,11 +1,11 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../screens/media/full_screen_media_viewer.dart';
 import '../../services/audio_service.dart';
 import '../../services/video_thumbnail_service.dart';
 import '../../theme/app_colors.dart';
 
-class MessageBubble extends StatelessWidget {
+class MessageBubble extends StatefulWidget {
   final String messageId;
   final String content;
   final String? mediaUrl;
@@ -15,9 +15,14 @@ class MessageBubble extends StatelessWidget {
   final String timestamp;
   final String status; // 'sending', 'sent', 'delivered', 'read', 'failed'
   final bool isEdited;
+  // Lightweight preview of the message this one is replying to, if any.
+  // Expected keys: 'sender_id', 'content', 'media_type', 'is_deleted'.
+  final Map<String, dynamic>? replyTo;
+  final String? replyToSenderName;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onRetry;
+  final VoidCallback? onReply;
 
   const MessageBubble({
     super.key,
@@ -30,13 +35,97 @@ class MessageBubble extends StatelessWidget {
     required this.timestamp,
     required this.status,
     required this.isEdited,
+    this.replyTo,
+    this.replyToSenderName,
     this.onEdit,
     this.onDelete,
     this.onRetry,
+    this.onReply,
   });
 
+  @override
+  State<MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<MessageBubble> {
+  static const double _maxDrag = 64;
+  static const double _triggerDrag = 48;
+
+  double _dragExtent = 0;
+  bool _dragging = false;
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (widget.onReply == null) return;
+    setState(() {
+      _dragging = true;
+      _dragExtent = (_dragExtent + details.delta.dx).clamp(-_maxDrag, _maxDrag);
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (widget.onReply == null) return;
+    if (_dragExtent.abs() >= _triggerDrag) {
+      HapticFeedback.selectionClick();
+      widget.onReply!();
+    }
+    setState(() {
+      _dragging = false;
+      _dragExtent = 0;
+    });
+  }
+
+  void _showActionsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.mediaType == 'text' && widget.onEdit != null)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  widget.onEdit!();
+                },
+              ),
+            if (widget.onDelete != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                title: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  widget.onDelete!();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _replyPreviewText(Map<String, dynamic> reply) {
+    if (reply['is_deleted'] == true) return 'This message was deleted';
+    final content = (reply['content'] ?? '').toString();
+    if (content.isNotEmpty) return content;
+    switch (reply['media_type']) {
+      case 'image':
+        return 'Photo';
+      case 'video':
+        return 'Video';
+      case 'audio':
+        return 'Voice message';
+      default:
+        return '';
+    }
+  }
+
   Widget _buildStatusIcon() {
-    if (status == 'sending') {
+    if (widget.status == 'sending') {
       return SizedBox(
         width: 12,
         height: 12,
@@ -44,9 +133,9 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
-    if (status == 'failed') {
+    if (widget.status == 'failed') {
       return GestureDetector(
-        onTap: onRetry,
+        onTap: widget.onRetry,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -64,11 +153,11 @@ class MessageBubble extends StatelessWidget {
     IconData icon;
     Color color = Colors.grey.shade400;
 
-    if (status == 'sent') {
+    if (widget.status == 'sent') {
       icon = Icons.check;
-    } else if (status == 'delivered') {
+    } else if (widget.status == 'delivered') {
       icon = Icons.done_all;
-    } else if (status == 'read') {
+    } else if (widget.status == 'read') {
       icon = Icons.done_all;
       color = Colors.blue.shade400; // Read indicator color
     } else {
@@ -80,20 +169,20 @@ class MessageBubble extends StatelessWidget {
 
   void _openFullScreen(BuildContext context) {
     Navigator.of(context).push(
-      FullScreenMediaViewer.route(mediaUrl: mediaUrl!, mediaType: mediaType),
+      FullScreenMediaViewer.route(mediaUrl: widget.mediaUrl!, mediaType: widget.mediaType),
     );
   }
 
   Widget _buildMediaPreview(BuildContext context, bool isMe) {
-    switch (mediaType) {
+    switch (widget.mediaType) {
       case 'audio':
-        return _AudioBubble(url: mediaUrl!, isMe: isMe);
+        return _AudioBubble(url: widget.mediaUrl!, isMe: isMe);
       case 'video':
         return GestureDetector(
           onTap: () => _openFullScreen(context),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: _VideoThumbnail(url: mediaUrl!),
+            child: _VideoThumbnail(url: widget.mediaUrl!),
           ),
         );
       case 'image':
@@ -103,7 +192,7 @@ class MessageBubble extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
-              mediaUrl!,
+              widget.mediaUrl!,
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,
@@ -123,91 +212,142 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: isMe ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 16),
+    final isMe = widget.isMe;
+    final canShowActions = isMe && !widget.isDeleted && (widget.onEdit != null || widget.onDelete != null);
+    final showReplyIcon = _dragExtent.abs() > 8;
+    final replyIconOpacity = (_dragExtent.abs() / _triggerDrag).clamp(0.0, 1.0);
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (showReplyIcon)
+          Align(
+            alignment: _dragExtent > 0 ? Alignment.centerLeft : Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Opacity(
+                opacity: replyIconOpacity,
+                child: const Icon(Icons.reply, color: AppColors.primary),
+              ),
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (isDeleted)
-              Text(
-                'This message was deleted',
-                style: TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: isMe ? Colors.white70 : AppColors.textSecondary,
-                  fontSize: 15,
-                ),
-              )
-            else ...[
-              if (mediaUrl != null && mediaUrl!.isNotEmpty)
-                _buildMediaPreview(context, isMe),
-              if (content.isNotEmpty) ...[
-                if (mediaUrl != null) const SizedBox(height: 6),
-                Text(
-                  content,
-                  style: TextStyle(
-                    color: isMe ? Colors.white : AppColors.textPrimary,
-                    fontSize: 15,
+        GestureDetector(
+          onHorizontalDragUpdate: _onHorizontalDragUpdate,
+          onHorizontalDragEnd: _onHorizontalDragEnd,
+          onLongPress: canShowActions ? () => _showActionsSheet(context) : null,
+          child: AnimatedContainer(
+            duration: _dragging ? Duration.zero : const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            transform: Matrix4.translationValues(_dragExtent, 0, 0),
+            child: Align(
+              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                decoration: BoxDecoration(
+                  color: isMe ? AppColors.primary : Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: Radius.circular(isMe ? 16 : 4),
+                    bottomRight: Radius.circular(isMe ? 4 : 16),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
-            ],
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isEdited && !isDeleted)
-                  Text('(edited) ', style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.grey)),
-                Text(
-                  timestamp,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isMe ? Colors.white70 : AppColors.textSecondary,
-                  ),
-                ),
-                if (isMe) ...[
-                  const SizedBox(width: 4),
-                  _buildStatusIcon(),
-                ],
-                if (isMe && !isDeleted && (onEdit != null || onDelete != null)) ...[
-                  const SizedBox(width: 4),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_vert, size: 14, color: isMe ? Colors.white70 : Colors.grey),
-                    onSelected: (value) {
-                      if (value == 'edit' && onEdit != null) onEdit!();
-                      if (value == 'delete' && onDelete != null) onDelete!();
-                    },
-                    itemBuilder: (context) => [
-                      if (mediaType == 'text' && onEdit != null) const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      if (onDelete != null) const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.replyTo != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: (isMe ? Colors.white : AppColors.primary).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border(
+                            left: BorderSide(color: isMe ? Colors.white70 : AppColors.primary, width: 3),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.replyToSenderName ?? 'Message',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isMe ? Colors.white : AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _replyPreviewText(widget.replyTo!),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isMe ? Colors.white70 : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (widget.isDeleted)
+                      Text(
+                        'This message was deleted',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: isMe ? Colors.white70 : AppColors.textSecondary,
+                          fontSize: 15,
+                        ),
+                      )
+                    else ...[
+                      if (widget.mediaUrl != null && widget.mediaUrl!.isNotEmpty)
+                        _buildMediaPreview(context, isMe),
+                      if (widget.content.isNotEmpty) ...[
+                        if (widget.mediaUrl != null) const SizedBox(height: 6),
+                        Text(
+                          widget.content,
+                          style: TextStyle(
+                            color: isMe ? Colors.white : AppColors.textPrimary,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
                     ],
-                  ),
-                ]
-              ],
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.isEdited && !widget.isDeleted)
+                          Text('(edited) ', style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.grey)),
+                        Text(
+                          widget.timestamp,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isMe ? Colors.white70 : AppColors.textSecondary,
+                          ),
+                        ),
+                        if (isMe) ...[
+                          const SizedBox(width: 4),
+                          _buildStatusIcon(),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

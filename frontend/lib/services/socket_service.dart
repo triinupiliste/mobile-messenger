@@ -74,13 +74,14 @@ class SocketService {
     _socket?.emit('join_chat', chatId);
   }
 
-  static void sendMessage(String chatId, String content, {String? mediaUrl, String mediaType = 'text', String? tempId}) {
+  static void sendMessage(String chatId, String content, {String? mediaUrl, String mediaType = 'text', String? tempId, String? replyToId}) {
     _socket?.emit('send_message', {
       'chatId': chatId,
       'content': content,
       'mediaUrl': mediaUrl,
       'mediaType': mediaType,
       'tempId': tempId,
+      'replyToId': replyToId,
     });
   }
 
