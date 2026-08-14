@@ -148,6 +148,51 @@ class _SearchScreenState extends State<SearchScreen> {
     final trimmedUsername = user.username.trim();
     final displayName = trimmedUsername.isEmpty ? 'Unknown user' : trimmedUsername;
 
+    Widget actionWidget;
+    if (user.relationshipStatus == 'friends') {
+      actionWidget = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text(
+          'Friends',
+          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+        ),
+      );
+    } else if (user.relationshipStatus == 'pending') {
+      actionWidget = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'Pending',
+          style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+        ),
+      );
+    } else {
+      actionWidget = ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(84, 40),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        onPressed: isSending ? null : () => _sendInvite(user),
+        child: isSending
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Text('Invite'),
+      );
+    }
+
     return Container(
       width: double.infinity,
       child: Padding(
@@ -182,23 +227,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(84, 40),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              onPressed: isSending ? null : () => _sendInvite(user),
-              child: isSending
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Invite'),
-            ),
+            actionWidget,
           ],
         ),
       ),

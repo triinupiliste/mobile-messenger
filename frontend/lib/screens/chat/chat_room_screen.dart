@@ -222,7 +222,30 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (createdAt == null) return '';
     final parsed = DateTime.tryParse(createdAt.toString());
     if (parsed == null) return '';
-    return DateFormat('HH:mm').format(parsed.toLocal());
+
+    final local = parsed.toLocal();
+    final time = DateFormat('HH:mm').format(local);
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDay = DateTime(local.year, local.month, local.day);
+    final daysAgo = today.difference(messageDay).inDays;
+
+    if (daysAgo <= 0) {
+      // Sent today: time only.
+      return time;
+    } else if (daysAgo == 1) {
+      // Sent yesterday.
+      return 'Yesterday $time';
+    } else if (daysAgo < 7) {
+      // Sent within the last week: day of week + time, e.g. "Mon 14:32".
+      return '${DateFormat('EEE').format(local)} $time';
+    } else {
+      // Older than a week: date + time, e.g. "14 Aug 14:32". The year is only
+      // included when the message isn't from the current year.
+      final datePattern = local.year == now.year ? 'd MMM' : 'd MMM yyyy';
+      return '${DateFormat(datePattern).format(local)} $time';
+    }
   }
 
   Future<void> _loadHistory() async {

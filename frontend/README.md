@@ -53,3 +53,5 @@ what needs to be added:
 - default theme is sunset coral, we could also have calm forest or sth where everything is the same except shades of green
 - the default profile icon should be in the strongest theme color
 - saving media to phone
+- replying to messages when swiping a message to the side
+- remove the three dots add long press instead to open delete or edit choice

@@ -132,8 +132,27 @@ export class UserRepository {
     }
 
     static async searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
+        // relationship_status lets the client show "Friends"/"Pending" instead of
+        // an Invite button: 'friends' if a chat already exists between the two
+        // users, 'pending' if either direction has an unresolved invite, else
+        // 'none'. Declined invites are intentionally excluded from the pending
+        // check so a declined pair can be found and invited again.
         const query = `
-            SELECT u.id, u.email, u.username, u.created_at, p.avatar_url
+            SELECT u.id, u.email, u.username, u.created_at, p.avatar_url,
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1 FROM chat_participants cp1
+                        JOIN chat_participants cp2 ON cp1.chat_id = cp2.chat_id
+                        WHERE cp1.user_id = $2 AND cp2.user_id = u.id
+                    ) THEN 'friends'
+                    WHEN EXISTS (
+                        SELECT 1 FROM invites i
+                        WHERE i.status = 'pending'
+                          AND ((i.sender_id = $2 AND i.receiver_id = u.id)
+                            OR (i.sender_id = u.id AND i.receiver_id = $2))
+                    ) THEN 'pending'
+                    ELSE 'none'
+                END AS relationship_status
             FROM users u
             LEFT JOIN profiles p ON u.id = p.user_id
             WHERE (u.email ILIKE $1 OR u.username ILIKE $1) AND u.id != $2
