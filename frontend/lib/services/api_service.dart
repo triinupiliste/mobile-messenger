@@ -298,4 +298,30 @@ class ApiService {
     final data = jsonDecode(response.body);
     throw Exception(data['error'] ?? 'Failed to upload media.');
   }
+
+  // Uploads a profile picture. Unlike uploadMedia, the backend restricts this
+  // endpoint to JPEG/PNG and a 5MB limit.
+  static Future<String> uploadAvatar(File file) async {
+    final token = await StorageService.getToken();
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/media/avatar'),
+    );
+    request.headers.addAll(_ngrokHeader);
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['url'] as String;
+    }
+
+    final data = jsonDecode(response.body);
+    throw Exception(data['error'] ?? 'Failed to upload profile picture.');
+  }
 }

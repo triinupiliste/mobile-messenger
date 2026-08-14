@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/invite_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/common/user_avatar.dart';
 
 class InvitesScreen extends StatefulWidget {
   // When true (e.g. opened by tapping an invite push notification), this
@@ -102,14 +103,9 @@ class InvitesScreenState extends State<InvitesScreen> {
                               color: AppColors.surface,
                               margin: const EdgeInsets.symmetric(vertical: 6),
                               child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.primary,
-                                  backgroundImage: (senderAvatar != null && senderAvatar.isNotEmpty)
-                                      ? NetworkImage(senderAvatar)
-                                      : null,
-                                  child: (senderAvatar == null || senderAvatar.isEmpty)
-                                      ? const Icon(Icons.person, color: Colors.white)
-                                      : null,
+                                leading: UserAvatar(
+                                  avatarUrl: senderAvatar,
+                                  displayName: sender['username']?.toString() ?? '',
                                 ),
                                 title: Text(sender['username'] ?? 'User',
                                     style: const TextStyle(
@@ -157,14 +153,9 @@ class InvitesScreenState extends State<InvitesScreen> {
                               color: AppColors.surface,
                               margin: const EdgeInsets.symmetric(vertical: 6),
                               child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.textSecondary,
-                                  backgroundImage: (recipientAvatar != null && recipientAvatar.isNotEmpty)
-                                      ? NetworkImage(recipientAvatar)
-                                      : null,
-                                  child: (recipientAvatar == null || recipientAvatar.isEmpty)
-                                      ? const Icon(Icons.person, color: Colors.white)
-                                      : null,
+                                leading: UserAvatar(
+                                  avatarUrl: recipientAvatar,
+                                  displayName: recipient['username']?.toString() ?? '',
                                 ),
                                 title: Text(recipient['username'] ?? 'User',
                                     style: const TextStyle(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/common/user_avatar.dart';
 import 'chat_room_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -135,17 +136,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   return false;
                 },
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.2),
-                    backgroundImage: (chat.contactAvatar != null && chat.contactAvatar!.isNotEmpty)
-                        ? NetworkImage(chat.contactAvatar!)
-                        : null,
-                    child: (chat.contactAvatar == null || chat.contactAvatar!.isEmpty)
-                        ? Text(
-                            contactName.isNotEmpty ? contactName[0].toUpperCase() : '?',
-                            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                          )
-                        : null,
+                  leading: UserAvatar(
+                    avatarUrl: chat.contactAvatar,
+                    displayName: contactName,
                   ),
                   title: Text(contactName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   subtitle: Text(

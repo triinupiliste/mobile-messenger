@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/common/user_avatar.dart';
 
 class SearchScreen extends StatefulWidget {
   final Future<void> Function()? onInviteSent;
@@ -146,7 +147,6 @@ class _SearchScreenState extends State<SearchScreen> {
     final isSending = _sendingInviteTo.contains(user.id);
     final trimmedUsername = user.username.trim();
     final displayName = trimmedUsername.isEmpty ? 'Unknown user' : trimmedUsername;
-    final initial = displayName.substring(0, 1).toUpperCase();
 
     return Container(
       width: double.infinity,
@@ -154,22 +154,10 @@ class _SearchScreenState extends State<SearchScreen> {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            CircleAvatar(
+            UserAvatar(
+              avatarUrl: user.avatarUrl,
+              displayName: displayName,
               radius: 26,
-              backgroundColor: const Color(0xFFFFE4E4),
-              backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                  ? NetworkImage(user.avatarUrl!)
-                  : null,
-              child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                  ? Text(
-                      initial,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(

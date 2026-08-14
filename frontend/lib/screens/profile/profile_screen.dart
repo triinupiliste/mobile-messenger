@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/common/user_avatar.dart';
 import '../../widgets/profile/avatar_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -135,7 +136,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     try {
       String? avatarUrlToSave = _avatarUrl;
       if (_selectedAvatarFile != null) {
-        avatarUrlToSave = await ApiService.uploadMedia(_selectedAvatarFile!);
+        avatarUrlToSave = await ApiService.uploadAvatar(_selectedAvatarFile!);
       }
 
       final updated = await ApiService.updateProfile(
@@ -221,15 +222,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                 },
               )
             else
-              CircleAvatar(
+              UserAvatar(
+                avatarUrl: _avatarUrl,
+                displayName: _usernameController.text,
                 radius: 50,
-                backgroundColor: AppColors.primary.withOpacity(0.1),
-                backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
-                    ? NetworkImage(_avatarUrl!)
-                    : null,
-                child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                    ? const Icon(Icons.person, size: 50, color: AppColors.primary)
-                    : null,
               ),
             if (_isEditing) ...[
               const SizedBox(height: 8),

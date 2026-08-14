@@ -10,6 +10,7 @@ import '../../services/audio_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/chat/message_bubble.dart';
+import '../../widgets/common/user_avatar.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
@@ -454,15 +455,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
+            UserAvatar(
+              avatarUrl: avatarUrl,
+              displayName: username,
               radius: 40,
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-              backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: (avatarUrl == null || avatarUrl.isEmpty)
-                  ? const Icon(Icons.person, size: 40, color: AppColors.primary)
-                  : null,
             ),
             const SizedBox(height: 16),
             Text(username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),

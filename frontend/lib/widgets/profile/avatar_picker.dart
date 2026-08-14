@@ -19,9 +19,30 @@ class AvatarPicker extends StatelessWidget {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
-    if (pickedFile != null) {
-      onImageSelected(File(pickedFile.path));
+    if (pickedFile == null) return;
+
+    final extension = pickedFile.path.split('.').last.toLowerCase();
+    if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Only JPEG and PNG images are supported.')),
+        );
+      }
+      return;
     }
+
+    final file = File(pickedFile.path);
+    const maxBytes = 5 * 1024 * 1024;
+    if (await file.length() > maxBytes) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile pictures must be 5MB or smaller.')),
+        );
+      }
+      return;
+    }
+
+    onImageSelected(file);
   }
 
   void _showPickerOptions(BuildContext context) {
