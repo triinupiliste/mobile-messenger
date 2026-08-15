@@ -43,16 +43,18 @@ export class MessageRepository {
         };
     }
 
-    static async getMessagesForChat(chatId: string): Promise<Message[]> {
+    static async getMessagesForChat(chatId: string, userId: string): Promise<Message[]> {
         const query = `
             SELECT m.*,
                 r.id AS r_id, r.sender_id AS r_sender_id, r.content AS r_content,
                 r.media_type AS r_media_type, r.is_deleted AS r_is_deleted
             FROM messages m
             LEFT JOIN messages r ON m.reply_to_id = r.id
+            LEFT JOIN chat_participants cp ON cp.chat_id = m.chat_id AND cp.user_id = $2
             WHERE m.chat_id = $1
+              AND (cp.cleared_at IS NULL OR m.created_at > cp.cleared_at)
             ORDER BY m.created_at ASC`;
-        const result = await pool.query(query, [chatId]);
+        const result = await pool.query(query, [chatId, userId]);
 
         return result.rows.map((row: any) => {
             const msg: Message = {

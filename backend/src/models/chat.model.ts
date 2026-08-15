@@ -8,6 +8,8 @@ export interface ChatParticipant {
     user_id: string;
     is_archived: boolean;
     is_muted: boolean;
+    is_deleted: boolean;
+    cleared_at: Date | null;
 }
 
 export interface ChatListItem {

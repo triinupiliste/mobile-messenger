@@ -50,6 +50,8 @@ CREATE TABLE chat_participants (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     is_archived BOOLEAN DEFAULT FALSE,
     is_muted BOOLEAN DEFAULT FALSE, -- Satisfies the chat muting requirement
+    is_deleted BOOLEAN DEFAULT FALSE, -- Per-user "delete chat" (hides it from that user's list only)
+    cleared_at TIMESTAMP, -- Hides messages sent before this time, for this user only
     PRIMARY KEY (chat_id, user_id)
 );
 

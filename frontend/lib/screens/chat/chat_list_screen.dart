@@ -55,7 +55,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages'),
+        title: Text(_showArchived ? 'Archived Messages' : 'Messages'),
         actions: [
           IconButton(
             icon: Icon(_showArchived ? Icons.archive : Icons.archive_outlined),
@@ -129,11 +129,29 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   if (direction == DismissDirection.startToEnd) {
                     chatProvider.toggleArchiveChat(chatId);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(isArchived ? 'Chat unarchived' : 'Chat archived')),
+                      SnackBar(
+                        content: Text(isArchived ? 'Chat unarchived' : 'Chat archived'),
+                        action: SnackBarAction(
+                          label: 'Undo',
+                          onPressed: () => chatProvider.toggleArchiveChat(chatId),
+                        ),
+                      ),
                     );
                     return false;
                   }
-                  return false;
+
+                  chatProvider.deleteChat(chatId);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Chat deleted'),
+                      duration: const Duration(seconds: 4),
+                      action: SnackBarAction(
+                        label: 'Undo',
+                        onPressed: () => chatProvider.undoDeleteChat(),
+                      ),
+                    ),
+                  );
+                  return true;
                 },
                 child: ListTile(
                   leading: UserAvatar(

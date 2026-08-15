@@ -287,6 +287,24 @@ class ApiService {
     );
   }
 
+  static Future<void> setChatArchived(String chatId, bool isArchived) async {
+    final headers = await _getHeaders();
+    await http.patch(
+      Uri.parse('$baseUrl/chats/$chatId/archive'),
+      headers: headers,
+      body: jsonEncode({'isArchived': isArchived}),
+    );
+  }
+
+  static Future<void> setChatDeleted(String chatId, bool isDeleted) async {
+    final headers = await _getHeaders();
+    await http.patch(
+      Uri.parse('$baseUrl/chats/$chatId/delete'),
+      headers: headers,
+      body: jsonEncode({'isDeleted': isDeleted}),
+    );
+  }
+
   // --- PUSH NOTIFICATIONS ---
   static Future<void> registerFcmToken(String fcmToken) async {
     final headers = await _getHeaders();

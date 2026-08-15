@@ -61,7 +61,7 @@ export class ChatRepository {
                   AND msg2.status != 'read'
                   AND msg2.is_deleted = FALSE
             ) unread ON true
-            WHERE cp.user_id = $1
+            WHERE cp.user_id = $1 AND cp.is_deleted = FALSE
             ORDER BY m.created_at DESC NULLS LAST`;
 
         const result = await pool.query(query, [userId]);
@@ -88,6 +88,31 @@ export class ChatRepository {
             SET is_muted = $3 
             WHERE chat_id = $1 AND user_id = $2`;
         await pool.query(query, [chatId, userId, isMuted]);
+    }
+
+    static async setChatDeletedStatus(chatId: string, userId: string, isDeleted: boolean): Promise<void> {
+        // Deleting also stamps `cleared_at` so the deleter's message history
+        // resets: if they text this contact again, they only see messages sent
+        // from this point forward, while the other participant still sees
+        // everything (matches WhatsApp/Messenger's per-device "delete chat").
+        const query = isDeleted
+            ? `UPDATE chat_participants 
+               SET is_deleted = TRUE, cleared_at = NOW() 
+               WHERE chat_id = $1 AND user_id = $2`
+            : `UPDATE chat_participants 
+               SET is_deleted = FALSE 
+               WHERE chat_id = $1 AND user_id = $2`;
+        await pool.query(query, [chatId, userId]);
+    }
+
+    // A new message un-archives/un-deletes the chat for anyone who'd hidden it
+    // — it should stay hidden only until the next message arrives.
+    static async reviveForAllParticipants(chatId: string): Promise<void> {
+        const query = `
+            UPDATE chat_participants 
+            SET is_archived = FALSE, is_deleted = FALSE 
+            WHERE chat_id = $1 AND (is_archived = TRUE OR is_deleted = TRUE)`;
+        await pool.query(query, [chatId]);
     }
 
     // Used to decide who to push a "new message" notification to: every OTHER

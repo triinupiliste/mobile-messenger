@@ -5,6 +5,7 @@ class UserModel {
   final String? avatarUrl;
   final String? aboutMe;
   final String relationshipStatus; // 'friends', 'pending', or 'none'
+  final String? chatId; // Present when relationshipStatus == 'friends'
 
   UserModel({
     required this.id,
@@ -13,6 +14,7 @@ class UserModel {
     this.avatarUrl,
     this.aboutMe,
     this.relationshipStatus = 'none',
+    this.chatId,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class UserModel {
       avatarUrl: _optionalString(json['avatar_url']),
       aboutMe: _optionalString(json['about_me']),
       relationshipStatus: (json['relationship_status'] ?? 'none').toString(),
+      chatId: _optionalString(json['chat_id']),
     );
   }
 

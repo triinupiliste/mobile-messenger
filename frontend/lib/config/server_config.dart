@@ -5,4 +5,4 @@
 //     'http://127.0.0.1:5000'
 // - Two+ real phones on their own networks, backend exposed via ngrok:
 //     'https://<your-subdomain>.ngrok-free.app'
-const String serverBaseUrl = 'https://50b5-185-68-210-241.ngrok-free.app';
+const String serverBaseUrl = 'https://747e-185-68-210-241.ngrok-free.app';

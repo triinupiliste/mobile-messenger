@@ -6,6 +6,7 @@ import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/user_avatar.dart';
+import '../chat/chat_room_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final Future<void> Function()? onInviteSent;
@@ -150,16 +151,27 @@ class _SearchScreenState extends State<SearchScreen> {
 
     Widget actionWidget;
     if (user.relationshipStatus == 'friends') {
-      actionWidget = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+      actionWidget = ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(84, 40),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
-        child: Text(
-          'Friends',
-          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
-        ),
+        onPressed: user.chatId == null
+            ? null
+            : () {
+                FocusScope.of(context).unfocus();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatRoomScreen(
+                      chatId: user.chatId!,
+                      contactId: user.id,
+                      contactName: displayName,
+                    ),
+                  ),
+                );
+              },
+        child: const Text('Send Message'),
       );
     } else if (user.relationshipStatus == 'pending') {
       actionWidget = Container(

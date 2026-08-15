@@ -139,6 +139,10 @@ export class UserRepository {
         // check so a declined pair can be found and invited again.
         const query = `
             SELECT u.id, u.email, u.username, u.created_at, p.avatar_url,
+                (SELECT cp1.chat_id FROM chat_participants cp1
+                    JOIN chat_participants cp2 ON cp1.chat_id = cp2.chat_id
+                    WHERE cp1.user_id = $2 AND cp2.user_id = u.id
+                    LIMIT 1) AS chat_id,
                 CASE
                     WHEN EXISTS (
                         SELECT 1 FROM chat_participants cp1

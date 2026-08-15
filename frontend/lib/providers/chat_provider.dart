@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/chat_model.dart';
 import '../services/api_service.dart';
@@ -7,6 +8,13 @@ import '../services/notification_service.dart';
 class ChatProvider with ChangeNotifier {
   List<ChatModel> _chats = [];
   bool _isLoading = false;
+
+  // Tracks a chat that's been swiped-to-delete but is still within its
+  // "Undo" window — removed from the visible list immediately, only
+  // persisted to the server once the timer fires without being undone.
+  ChatModel? _pendingDeleteChat;
+  int? _pendingDeleteIndex;
+  Timer? _pendingDeleteTimer;
 
   List<ChatModel> get chats => _chats;
   bool get isLoading => _isLoading;
@@ -75,7 +83,9 @@ class ChatProvider with ChangeNotifier {
                 : DateTime.now(),
             lastMessageSenderId: data['sender_id'],
             unreadCount: _chats[index].unreadCount,
-            isArchived: _chats[index].isArchived,
+            // A new message un-archives the chat (server does the same),
+            // regardless of who sent it or who had archived it.
+            isArchived: false,
             isMuted: _chats[index].isMuted,
           );
           _sortChats();
@@ -90,11 +100,67 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  void toggleArchiveChat(String chatId) {
+  Future<void> toggleArchiveChat(String chatId) async {
     final index = _chats.indexWhere((c) => c.chatId == chatId);
-    if (index != -1) {
-      _chats[index].isArchived = !_chats[index].isArchived;
+    if (index == -1) return;
+
+    final previousValue = _chats[index].isArchived;
+    final newValue = !previousValue;
+
+    // Optimistically update the UI, then persist to the server so the
+    // archived state survives refreshes/restarts. Roll back on failure.
+    _chats[index].isArchived = newValue;
+    notifyListeners();
+
+    try {
+      await ApiService.setChatArchived(chatId, newValue);
+    } catch (e) {
+      debugPrint('Error updating chat archive state: $e');
+      _chats[index].isArchived = previousValue;
       notifyListeners();
     }
+  }
+
+  // Removes the chat from the list right away for a snappy swipe-to-delete
+  // UX, but only tells the server once the undo window has elapsed.
+  void deleteChat(String chatId) {
+    final index = _chats.indexWhere((c) => c.chatId == chatId);
+    if (index == -1) return;
+
+    // If another delete was already pending, commit it immediately first.
+    _commitPendingDelete();
+
+    _pendingDeleteChat = _chats[index];
+    _pendingDeleteIndex = index;
+    _chats.removeAt(index);
+    notifyListeners();
+
+    _pendingDeleteTimer = Timer(const Duration(seconds: 4), _commitPendingDelete);
+  }
+
+  void _commitPendingDelete() {
+    _pendingDeleteTimer?.cancel();
+    _pendingDeleteTimer = null;
+    final chat = _pendingDeleteChat;
+    _pendingDeleteChat = null;
+    _pendingDeleteIndex = null;
+    if (chat == null) return;
+
+    ApiService.setChatDeleted(chat.chatId, true).catchError((e) {
+      debugPrint('Error deleting chat: $e');
+    });
+  }
+
+  void undoDeleteChat() {
+    _pendingDeleteTimer?.cancel();
+    _pendingDeleteTimer = null;
+    final chat = _pendingDeleteChat;
+    final index = _pendingDeleteIndex;
+    _pendingDeleteChat = null;
+    _pendingDeleteIndex = null;
+    if (chat == null || index == null) return;
+
+    _chats.insert(index.clamp(0, _chats.length), chat);
+    notifyListeners();
   }
 }

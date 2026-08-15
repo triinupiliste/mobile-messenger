@@ -74,6 +74,10 @@ export function registerChatHandlers(io: Server) {
                 // optimistically-rendered message with the confirmed, saved one.
                 io.to(chatId).emit('receive_message', { ...savedMessage, tempId });
 
+                // A new message un-archives/un-deletes the chat for anyone who'd
+                // hidden it — it should stay hidden only until the next message arrives.
+                await ChatRepository.reviveForAllParticipants(chatId);
+
                 // Push-notify every other participant who isn't muted on this chat.
                 try {
                     const [sender, otherParticipants] = await Promise.all([

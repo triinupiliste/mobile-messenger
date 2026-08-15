@@ -46,4 +46,6 @@ frontend/
 
 
 what needs to be added:
-- archive chats
+- the updates unread messages and all the screens should update the moment the event happens, not just when i close and open a screen or a chat. when i am watching the message list and i get a new message, it should appear as the unread count and bold text right away
+- same with invites, when i am looking at the invites screen, it should update the second i get a new invite even when the screen is open.
+- profile photo should be able to adjust size or cut it cause it takes a circle out of a square.

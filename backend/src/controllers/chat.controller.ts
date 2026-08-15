@@ -40,10 +40,24 @@ export class ChatController {
         }
     }
 
+    static async toggleDeleteChat(req: Request, res: Response): Promise<string | void> {
+        try {
+            const userId = (req as any).user.userId;
+            const chatId = req.params.chatId as string;
+            const { isDeleted } = req.body;
+
+            await ChatRepository.setChatDeletedStatus(chatId, userId, isDeleted);
+            res.status(200).json({ message: `Chat ${isDeleted ? 'deleted' : 'restored'} successfully.` });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to update chat delete state.' });
+        }
+    }
+
     static async getChatMessages(req: Request, res: Response): Promise<string | void> {
         try {
+            const userId = (req as any).user.userId;
             const chatId = req.params.chatId as string; // <-- Explicitly cast as string
-            const messages = await MessageRepository.getMessagesForChat(chatId);
+            const messages = await MessageRepository.getMessagesForChat(chatId, userId);
             res.status(200).json(messages);
         } catch (error) {
             res.status(500).json({ error: 'Failed to fetch chat messages.' });
