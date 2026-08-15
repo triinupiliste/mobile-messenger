@@ -3,6 +3,7 @@ import { InviteRepository } from '../repositories/invite.repository';
 import { ChatRepository } from '../repositories/chat.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { PushService } from '../services/push.service';
+import { getIO } from '../sockets/socket.instance';
 
 export class InviteController {
     static async sendInvite(req: Request, res: Response): Promise<void> {
@@ -33,6 +34,12 @@ export class InviteController {
 
             const invite = await InviteRepository.createInvite(senderId, receiverId);
             res.status(201).json({ message: 'Chat invite sent successfully.', invite });
+
+            // Let the receiver's Invites screen update live if it's open, instead
+            // of only refreshing the next time they open/re-visit it. Emit the
+            // enriched shape (with sender username/avatar) that the screen expects.
+            const enrichedInvite = await InviteRepository.getIncomingInviteById(invite.id);
+            getIO()?.to(receiverId).emit('new_invite', enrichedInvite ?? invite);
 
             // Push-notify the receiver — failures here must not affect the response above.
             try {
@@ -90,6 +97,9 @@ export class InviteController {
             if (status === 'accepted') {
                 await ChatRepository.createChatBetweenUsers(invite.sender_id, invite.receiver_id);
             }
+
+            // Let the sender's Invites/Search screens update live if they're open.
+            getIO()?.to(invite.sender_id).emit('invite_responded', updated);
 
             res.status(200).json({ message: `Invite ${status} successfully.`, invite: updated });
         } catch (error) {

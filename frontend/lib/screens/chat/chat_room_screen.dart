@@ -8,6 +8,7 @@ import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/audio_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/typing_indicator_bubble.dart';
@@ -76,6 +77,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // notification for it can be suppressed (already visible live here).
     ActiveChatTracker.setActiveChat(widget.chatId);
 
+    // Whether opened via a notification tap or directly through the app, its
+    // messages are read the moment this screen is on screen — clear any
+    // pending tray notification for it instead of leaving it lingering.
+    PushNotificationService.cancelForChat(widget.chatId);
+
     // 1. Join the specific chat room via socket
     SocketService.joinChat(widget.chatId);
 
@@ -115,6 +121,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         if (messageId != null && messageId.isNotEmpty) {
           SocketService.updateMessageStatus(widget.chatId, messageId, 'delivered');
         }
+
+        // This chat is open right now, so the message is immediately visible
+        // and counts as read — tell the backend straight away instead of
+        // waiting for the next time this screen is opened. Otherwise the
+        // chat list still shows it as unread once you navigate back, since
+        // its unread count is re-fetched fresh from the server.
+        ApiService.markChatMessagesRead(widget.chatId);
+        PushNotificationService.cancelForChat(widget.chatId);
       }
     };
     SocketService.on('receive_message', _onReceiveMessage);

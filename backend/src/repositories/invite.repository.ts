@@ -46,6 +46,34 @@ export class InviteRepository {
         }));
     }
 
+    // Same shape as getPendingInvitesForUser's rows, but for a single invite —
+    // used to emit a fully-enriched 'new_invite' socket payload (with sender
+    // username/avatar) right when it's created, instead of just raw columns.
+    static async getIncomingInviteById(inviteId: string) {
+        const query = `
+            SELECT i.id, i.sender_id, i.status, i.created_at,
+                   json_build_object(
+                       'id', u.id,
+                       'username', u.username,
+                       'email', u.email,
+                       'avatar_url', p.avatar_url
+                   ) AS sender
+            FROM invites i
+            JOIN users u ON i.sender_id = u.id
+            LEFT JOIN profiles p ON u.id = p.user_id
+            WHERE i.id = $1`;
+        const result = await pool.query(query, [inviteId]);
+        const row = result.rows[0];
+        if (!row) return null;
+        return {
+            ...row,
+            sender: {
+                ...row.sender,
+                avatar_url: row.sender?.avatar_url ? decryptText(row.sender.avatar_url) : row.sender?.avatar_url,
+            },
+        };
+    }
+
     static async getOutgoingInvitesForUser(userId: string) {
         const query = `
             SELECT i.id, i.receiver_id, i.status, i.created_at,

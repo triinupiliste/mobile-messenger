@@ -128,29 +128,34 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 confirmDismiss: (direction) async {
                   if (direction == DismissDirection.startToEnd) {
                     chatProvider.toggleArchiveChat(chatId);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(isArchived ? 'Chat unarchived' : 'Chat archived'),
-                        action: SnackBarAction(
-                          label: 'Undo',
-                          onPressed: () => chatProvider.toggleArchiveChat(chatId),
+                    ScaffoldMessenger.of(context)
+                      ..clearSnackBars()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text(isArchived ? 'Chat unarchived' : 'Chat archived'),
+                          duration: const Duration(seconds: 5),
+                          action: SnackBarAction(
+                            label: 'Undo',
+                            onPressed: () => chatProvider.toggleArchiveChat(chatId),
+                          ),
                         ),
-                      ),
-                    );
+                      );
                     return false;
                   }
 
                   chatProvider.deleteChat(chatId);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Chat deleted'),
-                      duration: const Duration(seconds: 4),
-                      action: SnackBarAction(
-                        label: 'Undo',
-                        onPressed: () => chatProvider.undoDeleteChat(),
+                  ScaffoldMessenger.of(context)
+                    ..clearSnackBars()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: const Text('Chat deleted'),
+                        duration: const Duration(seconds: 5),
+                        action: SnackBarAction(
+                          label: 'Undo',
+                          onPressed: () => chatProvider.undoDeleteChat(),
+                        ),
                       ),
-                    ),
-                  );
+                    );
                   return true;
                 },
                 child: ListTile(

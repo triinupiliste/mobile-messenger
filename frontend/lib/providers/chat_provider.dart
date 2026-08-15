@@ -8,6 +8,8 @@ import '../services/notification_service.dart';
 class ChatProvider with ChangeNotifier {
   List<ChatModel> _chats = [];
   bool _isLoading = false;
+  bool _socketListenerAttached = false;
+  String? _currentUserId;
 
   // Tracks a chat that's been swiped-to-delete but is still within its
   // "Undo" window — removed from the visible list immediately, only
@@ -30,6 +32,12 @@ class ChatProvider with ChangeNotifier {
   Future<void> fetchChats() async {
     _isLoading = true;
     notifyListeners();
+
+    // The socket may not have been initialized yet the first time this ran
+    // (e.g. right at app startup, before login finishes connecting it) —
+    // retry attaching here so live updates start working as soon as it is.
+    _initGlobalSocketListener();
+    unawaited(_ensureCurrentUserId());
 
     try {
       final data = await ApiService.getChats();
@@ -60,33 +68,57 @@ class ChatProvider with ChangeNotifier {
     });
   }
 
+  Future<void> _ensureCurrentUserId() async {
+    if (_currentUserId != null) return;
+    try {
+      final profile = await ApiService.getProfile();
+      _currentUserId = profile['id']?.toString() ?? profile['user_id']?.toString();
+    } catch (e) {
+      debugPrint('Error fetching current user id: $e');
+    }
+  }
+
   // Listen globally for incoming messages to update the chat list preview and sorting
   void _initGlobalSocketListener() {
+    if (_socketListenerAttached) return;
     // Ensure socket is initialized, then listen for updates
     try {
       SocketService.socket.on('receive_message', (data) {
         final chatId = data['chat_id'] ?? data['chatId'];
         final index = _chats.indexWhere((c) => c.chatId == chatId);
+        final senderId = data['sender_id']?.toString();
+        final isFromMe = _currentUserId != null && senderId == _currentUserId;
+        // If this chat is the one currently open on screen, its messages are
+        // already visible live there and get marked read — don't count them
+        // as unread on the list.
+        final chatIsActive = ActiveChatTracker.isChatActive(chatId?.toString() ?? '');
 
         if (index != -1) {
-          // Update last message snippet and timestamp for the chat list item.
-          // Unread count is left as-is here; it's refreshed accurately via fetchChats().
+          final existing = _chats[index];
           _chats[index] = ChatModel(
-            chatId: _chats[index].chatId,
-            contactId: _chats[index].contactId,
-            contactName: _chats[index].contactName,
-            contactAvatar: _chats[index].contactAvatar,
+            chatId: existing.chatId,
+            contactId: existing.contactId,
+            contactName: existing.contactName,
+            contactAvatar: existing.contactAvatar,
             lastMessage: data['content'],
             lastMessageType: data['media_type'] ?? data['mediaType'],
             lastMessageTime: data['created_at'] != null 
                 ? DateTime.parse(data['created_at']) 
                 : DateTime.now(),
             lastMessageSenderId: data['sender_id'],
-            unreadCount: _chats[index].unreadCount,
+            // Bump the unread badge/bold state immediately when a message
+            // arrives from the other person while its chat isn't open. If
+            // the chat is open right now, it's immediately visible/read (and
+            // the chat room screen tells the backend so too), so force it
+            // back to 0 instead of leaving a stale count from before it was
+            // opened.
+            unreadCount: chatIsActive
+                ? 0
+                : (!isFromMe ? existing.unreadCount + 1 : existing.unreadCount),
             // A new message un-archives the chat (server does the same),
             // regardless of who sent it or who had archived it.
             isArchived: false,
-            isMuted: _chats[index].isMuted,
+            isMuted: existing.isMuted,
           );
           _sortChats();
           notifyListeners();
@@ -95,6 +127,7 @@ class ChatProvider with ChangeNotifier {
           fetchChats();
         }
       });
+      _socketListenerAttached = true;
     } catch (e) {
       debugPrint('Socket listener initialization deferred: $e');
     }
@@ -135,7 +168,7 @@ class ChatProvider with ChangeNotifier {
     _chats.removeAt(index);
     notifyListeners();
 
-    _pendingDeleteTimer = Timer(const Duration(seconds: 4), _commitPendingDelete);
+    _pendingDeleteTimer = Timer(const Duration(seconds: 5), _commitPendingDelete);
   }
 
   void _commitPendingDelete() {

@@ -13,14 +13,78 @@ import 'notification_service.dart';
 const String _pushChannelId = 'messages';
 const String _pushChannelName = 'Messages & Invites';
 
+int _notificationIdForChat(String chatId) => chatId.hashCode;
+
+const AndroidNotificationChannel _pushChannel = AndroidNotificationChannel(
+  _pushChannelId,
+  _pushChannelName,
+  description: 'New chat messages and chat invites',
+  importance: Importance.high,
+);
+
+// Shared by both the foreground listener and the background isolate handler
+// below, so a chat's notification always gets the same stable id (letting it
+// be replaced/cancelled later) regardless of which path displayed it. The
+// backend sends data-only messages (no top-level `notification` block) so
+// the OS never auto-displays these itself — this is the only place that does.
+Future<void> _displayMessageNotification(
+  FlutterLocalNotificationsPlugin plugin,
+  Map<String, dynamic> data,
+) async {
+  final chatId = data['chatId'] as String?;
+  if (data['type'] == 'message' && chatId != null && ActiveChatTracker.isChatActive(chatId)) {
+    // Already visible live in the open chat — no need to also notify.
+    return;
+  }
+
+  final title = data['title'] as String?;
+  final body = data['body'] as String?;
+  if (title == null || body == null) return;
+
+  // Use a stable per-chat id (rather than a per-message hash) so a newer
+  // message for the same chat replaces the previous tray notification
+  // instead of stacking, and so it can be cancelled later by chat id (e.g.
+  // once the user reads it, whether via the app or the notification).
+  final notificationId =
+      data['type'] == 'message' && chatId != null ? _notificationIdForChat(chatId) : data.hashCode;
+
+  await plugin.show(
+    notificationId,
+    title,
+    body,
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        _pushChannelId,
+        _pushChannelName,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+    ),
+    payload: jsonEncode(data),
+  );
+}
+
 // Must be a top-level (or static) function — FCM runs this in a separate
 // background isolate when a push arrives while the app is backgrounded or
-// fully terminated. The system tray already shows the notification itself
-// (from the FCM `notification` payload), so there's nothing to display here;
-// tap handling is done later via getInitialMessage()/onMessageOpenedApp.
+// fully terminated. Since the backend now sends data-only messages, nothing
+// gets shown automatically — this has to display it itself, using its own
+// plugin instance since it doesn't share memory with the main isolate that
+// PushNotificationService normally runs in.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+
+  final plugin = FlutterLocalNotificationsPlugin();
+  await plugin.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    ),
+  );
+  await plugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(_pushChannel);
+
+  await _displayMessageNotification(plugin, message.data);
 }
 
 class PushNotificationService {
@@ -56,15 +120,9 @@ class PushNotificationService {
         },
       );
 
-      const channel = AndroidNotificationChannel(
-        _pushChannelId,
-        _pushChannelName,
-        description: 'New chat messages and chat invites',
-        importance: Importance.high,
-      );
       await _localNotifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+          ?.createNotificationChannel(_pushChannel);
 
       messaging.onTokenRefresh.listen((token) => ApiService.registerFcmToken(token));
 
@@ -103,30 +161,14 @@ class PushNotificationService {
   }
 
   static void _showForegroundNotification(RemoteMessage message) {
-    final data = message.data;
-    final chatId = data['chatId'];
-    if (data['type'] == 'message' && chatId != null && ActiveChatTracker.isChatActive(chatId)) {
-      // Already visible live in the open chat — no need to also notify.
-      return;
-    }
+    _displayMessageNotification(_localNotifications, message.data);
+  }
 
-    final notification = message.notification;
-    if (notification == null) return;
-
-    _localNotifications.show(
-      message.hashCode,
-      notification.title,
-      notification.body,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _pushChannelId,
-          _pushChannelName,
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-      ),
-      payload: jsonEncode(data),
-    );
+  // Dismisses the tray notification for a chat, e.g. once its messages have
+  // been read — whether that happened by tapping the notification itself or
+  // by opening the chat some other way through the app.
+  static Future<void> cancelForChat(String chatId) async {
+    await _localNotifications.cancel(_notificationIdForChat(chatId));
   }
 
   static void _handleTap(Map<String, dynamic> data) {

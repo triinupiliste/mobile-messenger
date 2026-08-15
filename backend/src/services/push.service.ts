@@ -42,16 +42,18 @@ export class PushService {
         try {
             await admin.messaging().send({
                 token: fcmToken,
-                notification: {
+                // Data-only (no top-level `notification` block) so the OS never
+                // auto-displays this itself — the app always renders it via its
+                // own code, using a stable per-chat notification id. That's what
+                // lets a chat's tray notification actually get cancelled once
+                // it's read, instead of being stuck there until swiped away.
+                data: {
+                    ...payload.data,
                     title: payload.title,
                     body: payload.body,
                 },
-                data: payload.data,
                 android: {
                     priority: 'high',
-                    notification: {
-                        channelId: 'messages',
-                    },
                 },
             });
         } catch (error) {

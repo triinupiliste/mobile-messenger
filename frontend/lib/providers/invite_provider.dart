@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/socket_service.dart';
 
 class InviteProvider with ChangeNotifier {
   List<dynamic> _incoming = [];
   List<dynamic> _outgoing = [];
   bool _isLoading = false;
+  bool _socketListenerAttached = false;
 
   // Incoming invite ids the user has already looked at (i.e. had the Invites
   // tab open since they arrived). Drives the badge on the bottom nav icon.
@@ -22,6 +24,12 @@ class InviteProvider with ChangeNotifier {
   Future<void> fetchInvites() async {
     _isLoading = true;
     notifyListeners();
+
+    // Retry attaching the socket listener here too, in case the socket wasn't
+    // ready yet the first time (e.g. right at app startup before login
+    // finishes connecting it).
+    _initGlobalSocketListener();
+
     try {
       final data = await ApiService.getInvitations();
       _incoming = data['incoming'] ?? [];
@@ -40,6 +48,35 @@ class InviteProvider with ChangeNotifier {
       _seenInviteIds.add(_inviteId(invite));
     }
     notifyListeners();
+  }
+
+  // Listen globally so the Invites screen (and the nav badge) update the
+  // instant a new invite arrives or one of ours gets responded to, instead of
+  // only refreshing the next time the screen is opened.
+  void _initGlobalSocketListener() {
+    if (_socketListenerAttached) return;
+    try {
+      SocketService.socket.on('new_invite', (data) {
+        final id = _inviteId(data);
+        if (id.isEmpty || _incoming.any((invite) => _inviteId(invite) == id)) return;
+        _incoming = [data, ..._incoming];
+        notifyListeners();
+      });
+
+      SocketService.socket.on('invite_responded', (data) {
+        final id = _inviteId(data);
+        final index = _outgoing.indexWhere((invite) => _inviteId(invite) == id);
+        if (index == -1) return;
+        // Responded invites (accepted/declined) no longer show up in the
+        // pending outgoing list, matching what a fresh fetch would return.
+        _outgoing = List.of(_outgoing)..removeAt(index);
+        notifyListeners();
+      });
+
+      _socketListenerAttached = true;
+    } catch (e) {
+      debugPrint('Socket listener initialization deferred: $e');
+    }
   }
 
   Future<void> respondToInvite(String inviteId, String status) async {
