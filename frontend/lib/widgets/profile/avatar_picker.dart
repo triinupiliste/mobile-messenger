@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../../theme/app_colors.dart';
 import '../common/user_avatar.dart';
 
@@ -20,11 +21,34 @@ class AvatarPicker extends StatelessWidget {
 
   Future<void> _pickImage(BuildContext context, ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
+    final pickedFile = await picker.pickImage(source: source, imageQuality: 90);
 
     if (pickedFile == null) return;
 
-    final extension = pickedFile.path.split('.').last.toLowerCase();
+    // Launch Image Cropper
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: pickedFile.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Square crop for profile avatars
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Profile Picture',
+          toolbarColor: AppColors.primary,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: 'Crop Profile Picture',
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    final file = File(croppedFile.path);
+    
+    // Extension & size validation
+    final extension = file.path.split('.').last.toLowerCase();
     if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -34,7 +58,6 @@ class AvatarPicker extends StatelessWidget {
       return;
     }
 
-    final file = File(pickedFile.path);
     const maxBytes = 5 * 1024 * 1024;
     if (await file.length() > maxBytes) {
       if (context.mounted) {
@@ -80,10 +103,6 @@ class AvatarPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A newly-picked-but-not-yet-saved local file takes priority. Otherwise,
-    // fall back to the same UserAvatar used everywhere else in the app (a
-    // real network image, or the same deterministic initials avatar) so the
-    // default profile picture is consistent across every screen.
     final Widget avatar = selectedFile != null
         ? CircleAvatar(
             radius: 50,
