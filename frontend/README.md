@@ -44,7 +44,3 @@ frontend/
         ├── chat/                          
         └── profile/
 
-
-what needs to be added:
-- profile photo should be able to adjust size or cut it cause it takes a circle out of a square.
-- remove friend option

@@ -305,6 +305,14 @@ class ApiService {
     );
   }
 
+  static Future<void> removeFriend(String chatId) async {
+    final headers = await _getHeaders();
+    await http.patch(
+      Uri.parse('$baseUrl/chats/$chatId/remove-friend'),
+      headers: headers,
+    );
+  }
+
   // --- PUSH NOTIFICATIONS ---
   static Future<void> registerFcmToken(String fcmToken) async {
     final headers = await _getHeaders();

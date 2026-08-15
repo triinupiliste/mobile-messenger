@@ -127,6 +127,17 @@ class ChatProvider with ChangeNotifier {
           fetchChats();
         }
       });
+
+      // The other participant removed us as a friend — the chat disappears
+      // from our list too, live, without needing to reopen the screen.
+      SocketService.socket.on('friend_removed', (data) {
+        final chatId = data['chatId'];
+        final removed = _chats.any((c) => c.chatId == chatId);
+        if (!removed) return;
+        _chats.removeWhere((c) => c.chatId == chatId);
+        notifyListeners();
+      });
+
       _socketListenerAttached = true;
     } catch (e) {
       debugPrint('Socket listener initialization deferred: $e');
@@ -195,5 +206,28 @@ class ChatProvider with ChangeNotifier {
 
     _chats.insert(index.clamp(0, _chats.length), chat);
     notifyListeners();
+  }
+
+  // Ends the friendship: removes the chat from the list immediately (for
+  // both participants — the backend hides it and notifies the other user's
+  // client too) with no undo, since this is already behind a confirmation
+  // dialog. Message history is preserved server-side in case they reconnect.
+  Future<void> removeFriend(String chatId) async {
+    final index = _chats.indexWhere((c) => c.chatId == chatId);
+    final removedChat = index != -1 ? _chats[index] : null;
+    if (index != -1) {
+      _chats.removeAt(index);
+      notifyListeners();
+    }
+
+    try {
+      await ApiService.removeFriend(chatId);
+    } catch (e) {
+      if (removedChat != null) {
+        _chats.insert(index.clamp(0, _chats.length), removedChat);
+        notifyListeners();
+      }
+      rethrow;
+    }
   }
 }

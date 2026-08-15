@@ -102,6 +102,10 @@ class InvitesScreenState extends State<InvitesScreen> {
                             return Card(
                               color: AppColors.surface,
                               margin: const EdgeInsets.symmetric(vertical: 6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: AppColors.primary.withOpacity(0.25)),
+                              ),
                               child: ListTile(
                                 leading: UserAvatar(
                                   avatarUrl: senderAvatar,
@@ -152,6 +156,10 @@ class InvitesScreenState extends State<InvitesScreen> {
                             return Card(
                               color: AppColors.surface,
                               margin: const EdgeInsets.symmetric(vertical: 6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: AppColors.primary.withOpacity(0.25)),
+                              ),
                               child: ListTile(
                                 leading: UserAvatar(
                                   avatarUrl: recipientAvatar,

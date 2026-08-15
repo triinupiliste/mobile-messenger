@@ -1,4 +1,4 @@
-export type InviteStatus = 'pending' | 'accepted' | 'declined';
+export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'removed';
 
 export interface Invite {
     id: string;

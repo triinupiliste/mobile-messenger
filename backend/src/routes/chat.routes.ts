@@ -8,6 +8,7 @@ router.get('/', verifyToken, ChatController.getChatList);
 router.patch('/:chatId/archive', verifyToken, ChatController.toggleArchiveChat);
 router.patch('/:chatId/mute', verifyToken, ChatController.toggleMuteChat);
 router.patch('/:chatId/delete', verifyToken, ChatController.toggleDeleteChat);
+router.patch('/:chatId/remove-friend', verifyToken, ChatController.removeFriend);
 router.get('/:chatId/messages', verifyToken, ChatController.getChatMessages);
 router.patch('/:chatId/read', verifyToken, ChatController.markMessagesRead);
 

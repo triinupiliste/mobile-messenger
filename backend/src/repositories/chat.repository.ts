@@ -27,6 +27,20 @@ export class ChatRepository {
         }
     }
 
+    // Looks for a chat (chat_participants row pair) that already exists
+    // between these two users, e.g. from before they unfriended each other —
+    // used so re-accepting an invite revives the old chat/history instead of
+    // creating a brand new, empty one.
+    static async findChatBetweenUsers(user1Id: string, user2Id: string): Promise<string | null> {
+        const query = `
+            SELECT cp1.chat_id FROM chat_participants cp1
+            JOIN chat_participants cp2 ON cp1.chat_id = cp2.chat_id
+            WHERE cp1.user_id = $1 AND cp2.user_id = $2
+            LIMIT 1`;
+        const result = await pool.query(query, [user1Id, user2Id]);
+        return result.rows[0]?.chat_id || null;
+    }
+
     static async getChatListForUser(userId: string): Promise<ChatListItem[]> {
         const query = `
             SELECT 
@@ -112,6 +126,29 @@ export class ChatRepository {
             UPDATE chat_participants 
             SET is_archived = FALSE, is_deleted = FALSE 
             WHERE chat_id = $1 AND (is_archived = TRUE OR is_deleted = TRUE)`;
+        await pool.query(query, [chatId]);
+    }
+
+    // Removing a friend hides their shared chat from both participants' lists
+    // — but, unlike a manual "delete chat", it deliberately leaves `cleared_at`
+    // untouched so the full message history is still there (and visible again
+    // to both) if they ever become friends again.
+    static async removeFriendship(chatId: string): Promise<void> {
+        const query = `
+            UPDATE chat_participants 
+            SET is_deleted = TRUE, is_archived = FALSE 
+            WHERE chat_id = $1`;
+        await pool.query(query, [chatId]);
+    }
+
+    // Un-hides a previously unfriended chat for both participants when they
+    // reconnect (invite accepted again), restoring their old history instead
+    // of starting a new chat from scratch.
+    static async reviveFriendship(chatId: string): Promise<void> {
+        const query = `
+            UPDATE chat_participants 
+            SET is_deleted = FALSE, is_archived = FALSE 
+            WHERE chat_id = $1`;
         await pool.query(query, [chatId]);
     }
 

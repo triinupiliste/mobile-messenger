@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import '../../providers/chat_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/audio_service.dart';
@@ -611,6 +613,42 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
+  Future<void> _confirmRemoveFriend() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Friend'),
+        content: Text(
+          'Remove ${widget.contactName} as a friend? This will remove the chat '
+          'for both of you. If you add each other again later, your message '
+          'history will be there.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await context.read<ChatProvider>().removeFriend(widget.chatId);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to remove friend: ${e.toString().replaceFirst('Exception: ', '')}')),
+      );
+    }
+  }
+
   Future<void> _viewProfile() async {
     if (widget.contactId.isEmpty) return;
 
@@ -729,6 +767,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 );
               } else if (value == 'view_profile') {
                 _viewProfile();
+              } else if (value == 'remove_friend') {
+                _confirmRemoveFriend();
               }
             },
             itemBuilder: (context) => [
@@ -739,6 +779,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               const PopupMenuItem(
                 value: 'view_profile',
                 child: Text('View Profile'),
+              ),
+              const PopupMenuItem(
+                value: 'remove_friend',
+                child: Text('Remove Friend', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),

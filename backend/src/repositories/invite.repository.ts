@@ -107,6 +107,19 @@ export class InviteRepository {
         return result.rows[0] || null;
     }
 
+    // Called when a friendship is removed: downgrades the invite that made
+    // them friends so it no longer counts as an active relationship, letting
+    // either of them send a fresh invite later without hitting the
+    // "already exists" check in findExistingInvite.
+    static async markRemovedBetween(user1Id: string, user2Id: string): Promise<void> {
+        const query = `
+            UPDATE invites SET status = 'removed'
+            WHERE status = 'accepted'
+              AND ((sender_id = $1 AND receiver_id = $2)
+                OR (sender_id = $2 AND receiver_id = $1))`;
+        await pool.query(query, [user1Id, user2Id]);
+    }
+
     static async findById(inviteId: string): Promise<Invite | null> {
         const query = 'SELECT * FROM invites WHERE id = $1';
         const result = await pool.query(query, [inviteId]);

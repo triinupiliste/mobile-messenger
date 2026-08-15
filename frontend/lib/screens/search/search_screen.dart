@@ -246,7 +246,7 @@ class _SearchScreenState extends State<SearchScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFD4D4)),
+        border: Border.all(color: AppColors.primary.withOpacity(0.25)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x12000000),

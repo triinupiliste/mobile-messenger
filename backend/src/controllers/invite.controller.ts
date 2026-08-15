@@ -93,9 +93,16 @@ export class InviteController {
 
             const updated = await InviteRepository.updateInviteStatus(inviteId, status);
 
-            // If accepted, automatically create a chat channel between sender and receiver
+            // If accepted, create a chat channel between sender and receiver —
+            // or, if they were friends before and later unfriended each other,
+            // revive their old chat (and its history) instead of starting fresh.
             if (status === 'accepted') {
-                await ChatRepository.createChatBetweenUsers(invite.sender_id, invite.receiver_id);
+                const existingChatId = await ChatRepository.findChatBetweenUsers(invite.sender_id, invite.receiver_id);
+                if (existingChatId) {
+                    await ChatRepository.reviveFriendship(existingChatId);
+                } else {
+                    await ChatRepository.createChatBetweenUsers(invite.sender_id, invite.receiver_id);
+                }
             }
 
             // Let the sender's Invites/Search screens update live if they're open.

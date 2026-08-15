@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ChatRepository } from '../repositories/chat.repository';
 import { MessageRepository } from '../repositories/message.repository';
+import { InviteRepository } from '../repositories/invite.repository';
 import { getIO } from '../sockets/socket.instance';
 
 export class ChatController {
@@ -50,6 +51,33 @@ export class ChatController {
             res.status(200).json({ message: `Chat ${isDeleted ? 'deleted' : 'restored'} successfully.` });
         } catch (error) {
             res.status(500).json({ error: 'Failed to update chat delete state.' });
+        }
+    }
+
+    // Ends the friendship: hides the chat from both participants' lists, but
+    // (unlike a manual chat delete) leaves the message history intact so it
+    // can reappear if they ever add each other back and get accepted again.
+    static async removeFriend(req: Request, res: Response): Promise<string | void> {
+        try {
+            const userId = (req as any).user.userId;
+            const chatId = req.params.chatId as string;
+
+            const otherParticipants = await ChatRepository.getOtherParticipantsForPush(chatId, userId);
+            const otherUserId = otherParticipants[0]?.user_id;
+            if (!otherUserId) {
+                res.status(404).json({ error: 'Chat not found.' });
+                return;
+            }
+
+            await ChatRepository.removeFriendship(chatId);
+            await InviteRepository.markRemovedBetween(userId, otherUserId);
+
+            // Let the other participant's chat list update live if it's open.
+            getIO()?.to(otherUserId).emit('friend_removed', { chatId });
+
+            res.status(200).json({ message: 'Friend removed successfully.' });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to remove friend.' });
         }
     }
 
