@@ -69,7 +69,7 @@ export class AuthController {
                 return;
             }
 
-            // Check if email or username already exists (provides strict visual feedback requirement)
+            // Check if email or username already exists (provides strict visual feedback)
             const existingUser = await UserRepository.findByEmailOrUsername(
                 normalizedEmail,
                 normalizedUsername,

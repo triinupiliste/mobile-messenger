@@ -18,7 +18,7 @@ export class ChatController {
     static async toggleArchiveChat(req: Request, res: Response): Promise<string | void> {
         try {
             const userId = (req as any).user.userId;
-            const chatId = req.params.chatId as string; // <-- Explicitly cast as string
+            const chatId = req.params.chatId as string;
             const { isArchived } = req.body;
 
             await ChatRepository.setChatArchivedStatus(chatId, userId, isArchived);

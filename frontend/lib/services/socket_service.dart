@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../config/server_config.dart';
+import '../constants/socket_events.dart';
 import 'storage_service.dart';
 
 class SocketService {
@@ -71,11 +72,11 @@ class SocketService {
     // socket.io-client buffers emits until the connection is established,
     // so we don't need to gate this on `connected` — doing so previously
     // caused join/send calls to be silently dropped during a reconnect race.
-    _socket?.emit('join_chat', chatId);
+    _socket?.emit(SocketEvents.joinChat, chatId);
   }
 
   static void sendMessage(String chatId, String content, {String? mediaUrl, String mediaType = 'text', String? tempId, String? replyToId}) {
-    _socket?.emit('send_message', {
+    _socket?.emit(SocketEvents.sendMessage, {
       'chatId': chatId,
       'content': content,
       'mediaUrl': mediaUrl,
@@ -86,7 +87,7 @@ class SocketService {
   }
 
   static void updateMessageStatus(String chatId, String messageId, String status) {
-    _socket?.emit('update_message_status', {
+    _socket?.emit(SocketEvents.updateMessageStatus, {
       'chatId': chatId,
       'messageId': messageId,
       'status': status,
@@ -94,7 +95,7 @@ class SocketService {
   }
 
   static void sendTypingIndicator(String chatId, bool isTyping) {
-    _socket?.emit('typing', {'chatId': chatId, 'isTyping': isTyping});
+    _socket?.emit(SocketEvents.typing, {'chatId': chatId, 'isTyping': isTyping});
   }
 
   static void disconnect() {

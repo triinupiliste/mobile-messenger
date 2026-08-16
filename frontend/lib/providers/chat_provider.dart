@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../constants/socket_events.dart';
 import '../models/chat_model.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
@@ -83,7 +84,7 @@ class ChatProvider with ChangeNotifier {
     if (_socketListenerAttached) return;
     // Ensure socket is initialized, then listen for updates
     try {
-      SocketService.socket.on('receive_message', (data) {
+      SocketService.socket.on(SocketEvents.receiveMessage, (data) {
         final chatId = data['chat_id'] ?? data['chatId'];
         final index = _chats.indexWhere((c) => c.chatId == chatId);
         final senderId = data['sender_id']?.toString();
@@ -130,7 +131,7 @@ class ChatProvider with ChangeNotifier {
 
       // The other participant removed us as a friend — the chat disappears
       // from our list too, live, without needing to reopen the screen.
-      SocketService.socket.on('friend_removed', (data) {
+      SocketService.socket.on(SocketEvents.friendRemoved, (data) {
         final chatId = data['chatId'];
         final removed = _chats.any((c) => c.chatId == chatId);
         if (!removed) return;
@@ -142,7 +143,7 @@ class ChatProvider with ChangeNotifier {
       // a chat now exists (or was revived) on the backend — refresh so it
       // shows up immediately instead of only appearing after the list is
       // reloaded by navigating away and back.
-      SocketService.socket.on('invite_responded', (data) {
+      SocketService.socket.on(SocketEvents.inviteResponded, (data) {
         if (data['status'] == 'accepted') {
           fetchChats();
         }
@@ -151,7 +152,7 @@ class ChatProvider with ChangeNotifier {
       // A contact changed their username/avatar — patch it into any chat we
       // have with them so it updates live everywhere it's shown (chat list,
       // avatars) instead of only after the next fetchChats().
-      SocketService.socket.on('profile_updated', (data) {
+      SocketService.socket.on(SocketEvents.profileUpdated, (data) {
         final userId = data['userId']?.toString() ?? data['user_id']?.toString();
         if (userId == null) return;
         final index = _chats.indexWhere((c) => c.contactId == userId);

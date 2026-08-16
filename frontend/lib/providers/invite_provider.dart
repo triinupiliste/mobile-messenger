@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/socket_events.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 
@@ -56,14 +57,14 @@ class InviteProvider with ChangeNotifier {
   void _initGlobalSocketListener() {
     if (_socketListenerAttached) return;
     try {
-      SocketService.socket.on('new_invite', (data) {
+      SocketService.socket.on(SocketEvents.newInvite, (data) {
         final id = _inviteId(data);
         if (id.isEmpty || _incoming.any((invite) => _inviteId(invite) == id)) return;
         _incoming = [data, ..._incoming];
         notifyListeners();
       });
 
-      SocketService.socket.on('invite_responded', (data) {
+      SocketService.socket.on(SocketEvents.inviteResponded, (data) {
         final id = _inviteId(data);
         final index = _outgoing.indexWhere((invite) => _inviteId(invite) == id);
         if (index == -1) return;
@@ -76,7 +77,7 @@ class InviteProvider with ChangeNotifier {
       // A sender/recipient we have a pending invite with changed their
       // username/avatar — patch it into the incoming/outgoing lists so it
       // updates live instead of only after the next fetchInvites().
-      SocketService.socket.on('profile_updated', (data) {
+      SocketService.socket.on(SocketEvents.profileUpdated, (data) {
         final userId = data['userId']?.toString() ?? data['user_id']?.toString();
         if (userId == null) return;
         var changed = false;

@@ -11,5 +11,4 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'messenger_db',
 });
 
-// This export statement turns this file into a module and fixes the error
 export default pool;

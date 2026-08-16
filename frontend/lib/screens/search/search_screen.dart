@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/user_model.dart';
+import '../../constants/socket_events.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
 import '../../theme/app_colors.dart';
@@ -32,7 +33,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    SocketService.socket.on('profile_updated', _handleProfileUpdated);
+    SocketService.socket.on(SocketEvents.profileUpdated, _handleProfileUpdated);
   }
 
   // A user currently shown in the results changed their username/avatar —
@@ -327,7 +328,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
-    SocketService.socket.off('profile_updated', _handleProfileUpdated);
+    SocketService.socket.off(SocketEvents.profileUpdated, _handleProfileUpdated);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();

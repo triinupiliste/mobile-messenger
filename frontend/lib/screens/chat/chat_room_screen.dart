@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import '../../constants/socket_events.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
@@ -93,7 +94,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _onConnect = (_) {
       SocketService.joinChat(widget.chatId);
     };
-    SocketService.on('connect', _onConnect);
+    SocketService.on(SocketEvents.connect, _onConnect);
 
     // 2. Listen for incoming real-time socket events
     _onReceiveMessage = (data) {
@@ -133,7 +134,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         PushNotificationService.cancelForChat(widget.chatId);
       }
     };
-    SocketService.on('receive_message', _onReceiveMessage);
+    SocketService.on(SocketEvents.receiveMessage, _onReceiveMessage);
 
     // If the server rejects a send outright (e.g. an unexpected error while
     // saving), mark that specific pending message failed immediately instead
@@ -147,7 +148,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         setState(() => _messages[index]['status'] = 'failed');
       }
     };
-    SocketService.on('error_feedback', _onErrorFeedbackMarksFailed);
+    SocketService.on(SocketEvents.errorFeedback, _onErrorFeedbackMarksFailed);
 
     _onUserTyping = (data) {
       if (data['chatId'] == widget.chatId) {
@@ -163,7 +164,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         }
       }
     };
-    SocketService.on('user_typing', _onUserTyping);
+    SocketService.on(SocketEvents.userTyping, _onUserTyping);
 
     _onMessageEdited = (data) {
       setState(() {
@@ -174,7 +175,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         }
       });
     };
-    SocketService.on('message_edited', _onMessageEdited);
+    SocketService.on(SocketEvents.messageEdited, _onMessageEdited);
 
     _onMessageDeleted = (data) {
       setState(() {
@@ -186,7 +187,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         }
       });
     };
-    SocketService.on('message_deleted', _onMessageDeleted);
+    SocketService.on(SocketEvents.messageDeleted, _onMessageDeleted);
 
     // When the other participant reads this chat, mark my sent messages as 'read'
     // so the delivery ticks update in real time.
@@ -202,7 +203,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         }
       });
     };
-    SocketService.on('messages_read', _onMessagesRead);
+    SocketService.on(SocketEvents.messagesRead, _onMessagesRead);
 
     _onErrorFeedback = (data) {
       if (!mounted) return;
@@ -210,7 +211,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         SnackBar(content: Text(data['message']?.toString() ?? 'Something went wrong.')),
       );
     };
-    SocketService.on('error_feedback', _onErrorFeedback);
+    SocketService.on(SocketEvents.errorFeedback, _onErrorFeedback);
 
     // Track which messages are actually on screen so we can show a "more
     // messages" pill whenever there's an unread message hidden below the fold.
@@ -500,7 +501,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     if (newContent == null || newContent.isEmpty || newContent == currentContent) return;
 
-    SocketService.socket.emit('edit_message', {
+    SocketService.socket.emit(SocketEvents.editMessage, {
       'messageId': messageId,
       'chatId': widget.chatId,
       'newContent': newContent,
@@ -528,7 +529,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     if (confirmed != true) return;
 
-    SocketService.socket.emit('delete_message', {
+    SocketService.socket.emit(SocketEvents.deleteMessage, {
       'messageId': messageId,
       'chatId': widget.chatId,
     });
@@ -729,14 +730,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (ActiveChatTracker.isChatActive(widget.chatId)) {
       ActiveChatTracker.setActiveChat(null);
     }
-    SocketService.off('connect', _onConnect);
-    SocketService.off('receive_message', _onReceiveMessage);
-    SocketService.off('error_feedback', _onErrorFeedbackMarksFailed);
-    SocketService.off('user_typing', _onUserTyping);
-    SocketService.off('message_edited', _onMessageEdited);
-    SocketService.off('message_deleted', _onMessageDeleted);
-    SocketService.off('messages_read', _onMessagesRead);
-    SocketService.off('error_feedback', _onErrorFeedback);
+    SocketService.off(SocketEvents.connect, _onConnect);
+    SocketService.off(SocketEvents.receiveMessage, _onReceiveMessage);
+    SocketService.off(SocketEvents.errorFeedback, _onErrorFeedbackMarksFailed);
+    SocketService.off(SocketEvents.userTyping, _onUserTyping);
+    SocketService.off(SocketEvents.messageEdited, _onMessageEdited);
+    SocketService.off(SocketEvents.messageDeleted, _onMessageDeleted);
+    SocketService.off(SocketEvents.messagesRead, _onMessagesRead);
+    SocketService.off(SocketEvents.errorFeedback, _onErrorFeedback);
     _itemPositionsListener.itemPositions.removeListener(_handleItemPositionsChanged);
     _messageController.dispose();
     _typingTimer?.cancel();
