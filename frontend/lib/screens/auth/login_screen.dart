@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../theme/app_colors.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -97,8 +98,8 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.chat_bubble_rounded,
-                    size: 80, color: Color(0xFFFF6B6B)),
+                Icon(Icons.chat_bubble_rounded,
+                    size: 80, color: AppColors.primary),
                 const SizedBox(height: 16),
                 const Text(
                   'Welcome Back!',
@@ -106,13 +107,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2D3142)),
+                      color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'Sign in to continue messaging',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Color(0xFF8D99AE)),
+                  style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 32),
                 if (_errorMessage != null)
@@ -167,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: TextButton(
                     onPressed: _openForgotPassword,
                     child: const Text('Forgot password?',
-                        style: TextStyle(color: Color(0xFF8D99AE))),
+                        style: TextStyle(color: AppColors.textSecondary)),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -182,8 +183,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: _openRegistration,
-                  child: const Text("Don't have an account? Sign Up",
-                      style: TextStyle(color: Color(0xFFFF6B6B))),
+                  child: Text("Don't have an account? Sign Up",
+                      style: TextStyle(color: AppColors.primary)),
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../screens/media/full_screen_media_viewer.dart';
+import '../../services/api_service.dart';
 import '../../services/audio_service.dart';
 import '../../services/video_thumbnail_service.dart';
 import '../../theme/app_colors.dart';
@@ -192,7 +193,7 @@ class _MessageBubbleState extends State<MessageBubble> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
-              widget.mediaUrl!,
+              ApiService.mediaUrl(widget.mediaUrl!),
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,

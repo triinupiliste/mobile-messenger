@@ -47,6 +47,20 @@ class ApiService {
     };
   }
 
+  // The /uploads/:filename endpoint requires a JWT, but native media widgets
+  // (Image.network, NetworkImage, VideoPlayerController, video_thumbnail,
+  // audioplayers) fetch a URL directly and can't attach an Authorization
+  // header, so the token is appended as a query parameter instead. Call this
+  // wherever a media URL from the backend is handed to one of those APIs.
+  static String mediaUrl(String url) {
+    final token = StorageService.cachedToken;
+    if (token == null || token.isEmpty) return url;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return url;
+    final query = Map<String, String>.from(uri.queryParameters)..['token'] = token;
+    return uri.replace(queryParameters: query).toString();
+  }
+
   // --- AUTHENTICATION ---
   static Future<Map<String, dynamic>> register(
       String username, String email, String password) async {

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'api_service.dart';
 
 class AudioService {
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -30,7 +31,7 @@ class AudioService {
   // Play audio message
   Future<void> playAudio(String urlOrPath) async {
     if (urlOrPath.startsWith('http')) {
-      await _audioPlayer.play(UrlSource(urlOrPath));
+      await _audioPlayer.play(UrlSource(ApiService.mediaUrl(urlOrPath)));
     } else {
       await _audioPlayer.play(DeviceFileSource(urlOrPath));
     }

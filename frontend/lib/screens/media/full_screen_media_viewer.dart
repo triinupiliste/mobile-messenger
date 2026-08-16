@@ -68,7 +68,7 @@ class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
                     minScale: 1,
                     maxScale: 4,
                     child: Image.network(
-                      widget.mediaUrl,
+                      ApiService.mediaUrl(widget.mediaUrl),
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.broken_image,
@@ -133,7 +133,7 @@ class _FullScreenVideoPlayerState extends State<_FullScreenVideoPlayer> {
     // its HTML interstitial warning page instead of the actual video bytes,
     // so the native video player fails to load/play the file.
     _controller = VideoPlayerController.networkUrl(
-      Uri.parse(widget.url),
+      Uri.parse(ApiService.mediaUrl(widget.url)),
       httpHeaders: ApiService.ngrokHeader,
     )
       ..initialize().then((_) {

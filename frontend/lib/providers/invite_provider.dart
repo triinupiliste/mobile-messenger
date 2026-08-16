@@ -73,6 +73,41 @@ class InviteProvider with ChangeNotifier {
         notifyListeners();
       });
 
+      // A sender/recipient we have a pending invite with changed their
+      // username/avatar — patch it into the incoming/outgoing lists so it
+      // updates live instead of only after the next fetchInvites().
+      SocketService.socket.on('profile_updated', (data) {
+        final userId = data['userId']?.toString() ?? data['user_id']?.toString();
+        if (userId == null) return;
+        var changed = false;
+
+        _incoming = _incoming.map((invite) {
+          final sender = invite['sender'];
+          if (sender is Map && sender['id']?.toString() == userId) {
+            changed = true;
+            final updatedSender = Map<String, dynamic>.from(sender);
+            if (data['username'] != null) updatedSender['username'] = data['username'];
+            if (data['avatar_url'] != null) updatedSender['avatar_url'] = data['avatar_url'];
+            return {...Map<String, dynamic>.from(invite), 'sender': updatedSender};
+          }
+          return invite;
+        }).toList();
+
+        _outgoing = _outgoing.map((invite) {
+          final recipient = invite['recipient'];
+          if (recipient is Map && recipient['id']?.toString() == userId) {
+            changed = true;
+            final updatedRecipient = Map<String, dynamic>.from(recipient);
+            if (data['username'] != null) updatedRecipient['username'] = data['username'];
+            if (data['avatar_url'] != null) updatedRecipient['avatar_url'] = data['avatar_url'];
+            return {...Map<String, dynamic>.from(invite), 'recipient': updatedRecipient};
+          }
+          return invite;
+        }).toList();
+
+        if (changed) notifyListeners();
+      });
+
       _socketListenerAttached = true;
     } catch (e) {
       debugPrint('Socket listener initialization deferred: $e');

@@ -5,8 +5,16 @@ class StorageService {
   static const String _tokenKey = 'auth_token';
   static const String _themeKey = 'app_theme';
 
+  // In-memory copy of the token, kept in sync with secure storage. Widgets
+  // that build media URLs (e.g. NetworkImage) need the token synchronously,
+  // which flutter_secure_storage can't provide directly since all its reads
+  // are async.
+  static String? _cachedToken;
+  static String? get cachedToken => _cachedToken;
+
   // Save the authentication token
   static Future<void> setToken(String token) async {
+    _cachedToken = token;
     await _secureStorage.write(key: _tokenKey, value: token);
   }
 
@@ -17,11 +25,13 @@ class StorageService {
 
   // Retrieve the stored authentication token
   static Future<String?> getToken() async {
-    return await _secureStorage.read(key: _tokenKey);
+    _cachedToken = await _secureStorage.read(key: _tokenKey);
+    return _cachedToken;
   }
 
   // Clear the token on logout
   static Future<void> clearToken() async {
+    _cachedToken = null;
     await _secureStorage.delete(key: _tokenKey);
   }
 

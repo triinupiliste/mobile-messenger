@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import '../../services/socket_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../chat/chat_room_screen.dart';
@@ -27,6 +28,34 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasSearched = false;
   String? _searchError;
   int _searchVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    SocketService.socket.on('profile_updated', _handleProfileUpdated);
+  }
+
+  // A user currently shown in the results changed their username/avatar —
+  // patch it in live instead of only showing it fresh on the next search.
+  void _handleProfileUpdated(dynamic data) {
+    if (!mounted) return;
+    final userId = data['userId']?.toString() ?? data['user_id']?.toString();
+    if (userId == null) return;
+    final index = _searchResults.indexWhere((u) => u.id == userId);
+    if (index == -1) return;
+    final existing = _searchResults[index];
+    setState(() {
+      _searchResults[index] = UserModel(
+        id: existing.id,
+        username: data['username']?.toString() ?? existing.username,
+        email: existing.email,
+        avatarUrl: data['avatar_url']?.toString() ?? existing.avatarUrl,
+        aboutMe: existing.aboutMe,
+        relationshipStatus: existing.relationshipStatus,
+        chatId: existing.chatId,
+      );
+    });
+  }
 
   void _scheduleSearch(String value) {
     _searchDebounce?.cancel();
@@ -298,6 +327,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    SocketService.socket.off('profile_updated', _handleProfileUpdated);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();

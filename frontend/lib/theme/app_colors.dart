@@ -25,6 +25,11 @@ class AppColors {
     background = _backgroundFor(theme);
   }
 
+  // Public accessor so UI that needs to show a specific theme's swatch
+  // (e.g. the theme picker in Settings) can reference the same values as
+  // applyTheme() instead of duplicating the hex literals.
+  static Color primaryFor(AppThemeName theme) => _primaryFor(theme);
+
   static Color _primaryFor(AppThemeName theme) {
     switch (theme) {
       case AppThemeName.calmForest:

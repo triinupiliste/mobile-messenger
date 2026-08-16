@@ -41,6 +41,19 @@ export class ChatRepository {
         return result.rows[0]?.chat_id || null;
     }
 
+    // Returns the distinct set of "other participant" user ids across every
+    // chat this user is part of (regardless of archived/deleted state) —
+    // used to know who to notify live when this user's profile/avatar changes.
+    static async getContactIds(userId: string): Promise<string[]> {
+        const query = `
+            SELECT DISTINCT other_cp.user_id AS contact_id
+            FROM chat_participants cp
+            JOIN chat_participants other_cp ON cp.chat_id = other_cp.chat_id AND other_cp.user_id != $1
+            WHERE cp.user_id = $1`;
+        const result = await pool.query(query, [userId]);
+        return result.rows.map((row: any) => row.contact_id);
+    }
+
     static async getChatListForUser(userId: string): Promise<ChatListItem[]> {
         const query = `
             SELECT 

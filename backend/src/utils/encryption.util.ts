@@ -14,7 +14,14 @@ export function encryptText(text: string): string {
 
 export function decryptText(text: string): string {
     const parts = text.split(':');
-    if (parts.length !== 2) return text; // Fallback if unencrypted
+    if (parts.length !== 2) {
+        // encryptText() always produces an "iv:ciphertext" pair, so reaching this
+        // branch means the stored value never went through encryptText() (e.g.
+        // legacy/manually-inserted data). Log it so any accidental plaintext
+        // write is visible instead of silently passing through unnoticed.
+        console.warn('decryptText: value is not in the expected iv:ciphertext format, returning as-is.');
+        return text;
+    }
     const iv = Buffer.from(parts[0], 'hex');
     const encryptedText = parts[1];
     const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);

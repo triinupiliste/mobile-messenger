@@ -11,6 +11,7 @@ import chatRoutes from './routes/chat.routes';
 import mediaRoutes from './routes/media.routes';
 import { MediaController } from './controllers/media.controller';
 import { errorHandler } from './middleware/error.middleware';
+import { verifyMediaToken } from './middleware/auth.middleware';
 import { registerChatHandlers } from './sockets/chat.socket';
 import { setIO } from './sockets/socket.instance';
 
@@ -34,7 +35,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded media (images, videos, voice notes). Files are stored encrypted
 // at rest, so this decrypts them on the fly rather than using express.static.
-app.get('/uploads/:filename', MediaController.getMedia);
+// Requires a valid JWT (header or ?token= query param) so media can't be
+// fetched by anyone who merely guesses/observes a filename.
+app.get('/uploads/:filename', verifyMediaToken, MediaController.getMedia);
 
 // API Routes
 app.use('/api/auth', authRoutes);

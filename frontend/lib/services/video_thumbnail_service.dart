@@ -15,7 +15,7 @@ class VideoThumbnailService {
 
     try {
       final bytes = await VideoThumbnail.thumbnailData(
-        video: url,
+        video: ApiService.mediaUrl(url),
         // Without this, ngrok (when used to expose the backend) returns its
         // HTML interstitial warning page instead of the video bytes, which
         // silently fails to decode into a thumbnail.

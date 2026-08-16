@@ -125,4 +125,17 @@ export class InviteRepository {
         const result = await pool.query(query, [inviteId]);
         return result.rows[0] || null;
     }
+
+    // Returns the distinct set of user ids this user has a pending invite with
+    // (as either sender or receiver) — used alongside getContactIds so a
+    // profile/avatar change is also reflected live on invite screens.
+    static async getPendingInvitePartnerIds(userId: string): Promise<string[]> {
+        const query = `
+            SELECT DISTINCT
+                CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END AS partner_id
+            FROM invites
+            WHERE (sender_id = $1 OR receiver_id = $1) AND status = 'pending'`;
+        const result = await pool.query(query, [userId]);
+        return result.rows.map((row: any) => row.partner_id);
+    }
 }

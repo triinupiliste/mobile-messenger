@@ -138,6 +138,41 @@ class ChatProvider with ChangeNotifier {
         notifyListeners();
       });
 
+      // The other person responded to an invite we sent. If they accepted,
+      // a chat now exists (or was revived) on the backend — refresh so it
+      // shows up immediately instead of only appearing after the list is
+      // reloaded by navigating away and back.
+      SocketService.socket.on('invite_responded', (data) {
+        if (data['status'] == 'accepted') {
+          fetchChats();
+        }
+      });
+
+      // A contact changed their username/avatar — patch it into any chat we
+      // have with them so it updates live everywhere it's shown (chat list,
+      // avatars) instead of only after the next fetchChats().
+      SocketService.socket.on('profile_updated', (data) {
+        final userId = data['userId']?.toString() ?? data['user_id']?.toString();
+        if (userId == null) return;
+        final index = _chats.indexWhere((c) => c.contactId == userId);
+        if (index == -1) return;
+        final existing = _chats[index];
+        _chats[index] = ChatModel(
+          chatId: existing.chatId,
+          contactId: existing.contactId,
+          contactName: data['username']?.toString() ?? existing.contactName,
+          contactAvatar: data['avatar_url']?.toString() ?? existing.contactAvatar,
+          lastMessage: existing.lastMessage,
+          lastMessageType: existing.lastMessageType,
+          lastMessageTime: existing.lastMessageTime,
+          lastMessageSenderId: existing.lastMessageSenderId,
+          unreadCount: existing.unreadCount,
+          isArchived: existing.isArchived,
+          isMuted: existing.isMuted,
+        );
+        notifyListeners();
+      });
+
       _socketListenerAttached = true;
     } catch (e) {
       debugPrint('Socket listener initialization deferred: $e');

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 
 /// Displays a user's uploaded profile picture, or a default initials avatar
@@ -30,7 +31,7 @@ class UserAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: radius,
       backgroundColor: hasUrl ? AppColors.primary.withOpacity(0.1) : AppColors.primary,
-      backgroundImage: hasUrl ? NetworkImage(avatarUrl!) : null,
+      backgroundImage: hasUrl ? NetworkImage(ApiService.mediaUrl(avatarUrl!)) : null,
       child: hasUrl
           ? null
           : Text(

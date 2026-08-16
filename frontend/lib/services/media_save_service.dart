@@ -25,7 +25,7 @@ class MediaSaveService {
       // ngrok (when used to expose the backend) serves an HTML interstitial
       // warning page to any non-browser request without this header, which
       // would otherwise get saved as a fake/broken media file.
-      final response = await http.get(Uri.parse(url), headers: ApiService.ngrokHeader);
+      final response = await http.get(Uri.parse(ApiService.mediaUrl(url)), headers: ApiService.ngrokHeader);
       if (response.statusCode != 200) return MediaSaveResult.failed;
 
       final extension = _extensionFor(url, mediaType);

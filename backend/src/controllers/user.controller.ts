@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { UserRepository } from '../repositories/user.repository';
+import { ChatRepository } from '../repositories/chat.repository';
+import { InviteRepository } from '../repositories/invite.repository';
 import { isValidEmail } from '../utils/validator.util';
+import { getIO } from '../sockets/socket.instance';
 
 export class UserController {
     static async getProfile(req: Request, res: Response): Promise<void> {
@@ -68,6 +71,24 @@ export class UserController {
                 avatarUrl: avatar_url,
                 aboutMe: about_me,
             });
+
+            // Let anyone who has this user as a chat contact or a pending
+            // invite see the new username/avatar live, without needing to
+            // reopen the chat list/invites/search screens.
+            const [contactIds, invitePartnerIds] = await Promise.all([
+                ChatRepository.getContactIds(userId),
+                InviteRepository.getPendingInvitePartnerIds(userId),
+            ]);
+            const notifyIds = new Set([...contactIds, ...invitePartnerIds]);
+            const payload = {
+                userId,
+                username: updatedProfile.username,
+                avatar_url: updatedProfile.avatar_url,
+            };
+            for (const id of notifyIds) {
+                getIO()?.to(id).emit('profile_updated', payload);
+            }
+
             res.status(200).json({ message: 'Profile updated successfully', profile: updatedProfile });
         } catch (error) {
             res.status(500).json({ error: 'Failed to update profile.' });

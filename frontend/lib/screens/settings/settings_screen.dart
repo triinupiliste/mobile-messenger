@@ -19,13 +19,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       theme: AppThemeName.sunsetCoral,
       label: 'Sunset Coral',
       description: 'The default warm coral theme',
-      swatch: Color(0xFFFF6B6B),
     ),
     (
       theme: AppThemeName.calmForest,
       label: 'Calm Forest',
       description: 'A calm, green take on the same look',
-      swatch: Color(0xFF3F9142),
     ),
   ];
 
@@ -60,25 +58,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           for (final option in _themeOptions)
-            Card(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: _selectedTheme == option.theme ? option.swatch : Colors.transparent,
-                  width: 2,
+            Builder(builder: (context) {
+              final swatch = AppColors.primaryFor(option.theme);
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: _selectedTheme == option.theme ? swatch : Colors.transparent,
+                    width: 2,
+                  ),
                 ),
-              ),
-              child: ListTile(
-                onTap: () => _selectTheme(option.theme),
-                leading: CircleAvatar(backgroundColor: option.swatch),
-                title: Text(option.label),
-                subtitle: Text(option.description),
-                trailing: _selectedTheme == option.theme
-                    ? Icon(Icons.check_circle, color: option.swatch)
-                    : const Icon(Icons.radio_button_unchecked, color: AppColors.textSecondary),
-              ),
-            ),
+                child: ListTile(
+                  onTap: () => _selectTheme(option.theme),
+                  leading: CircleAvatar(backgroundColor: swatch),
+                  title: Text(option.label),
+                  subtitle: Text(option.description),
+                  trailing: _selectedTheme == option.theme
+                      ? Icon(Icons.check_circle, color: swatch)
+                      : const Icon(Icons.radio_button_unchecked, color: AppColors.textSecondary),
+                ),
+              );
+            }),
         ],
       ),
     );
