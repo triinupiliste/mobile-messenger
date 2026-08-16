@@ -11,16 +11,32 @@ import '../profile/profile_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  // Lets screens pushed on top of HomeScreen (e.g. ChatRoomScreen) switch
+  // back to a specific tab once popped — e.g. after removing a friend, we
+  // want the user to land back on the Chats tab specifically, regardless of
+  // which tab was active when they navigated into the chat.
+  static final GlobalKey<HomeScreenState> homeKey = GlobalKey<HomeScreenState>();
+
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
+  static const _chatsTabIndex = 0;
   static const _invitesTabIndex = 1;
   static const _profileTabIndex = 3;
 
   int _currentIndex = 0;
   final _profileKey = GlobalKey<ProfileScreenState>();
+
+  // Switches to the Chats tab and refreshes it, mirroring what tapping the
+  // Chats tab itself does. Used by ChatRoomScreen after removing a friend.
+  void switchToChatsTab() {
+    if (_currentIndex != _chatsTabIndex) {
+      setState(() => _currentIndex = _chatsTabIndex);
+    }
+    context.read<ChatProvider>().fetchChats();
+  }
 
   late final List<Widget> _screens = [
     const ChatListScreen(),

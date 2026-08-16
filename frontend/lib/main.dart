@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/invite_provider.dart';
+import 'services/notification_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/theme_service.dart';
 import 'theme/app_colors.dart';
@@ -90,8 +91,35 @@ class _CrashFallbackScreen extends StatelessWidget {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Only 'resumed' means the app is actually visible/interactive right now.
+  // paused/inactive/hidden/detached all mean the user isn't looking at it
+  // (backgrounded, screen locked, in the app switcher, etc.) — even though a
+  // chat screen underneath may still be fully mounted with its socket
+  // listeners still registered.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    AppLifecycleTracker.setForeground(state == AppLifecycleState.resumed);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +142,7 @@ class MyApp extends StatelessWidget {
               );
             }
             return authProvider.isAuthenticated
-                ? const HomeScreen()
+                ? HomeScreen(key: HomeScreen.homeKey)
                 : const LoginScreen();
           },
         ),

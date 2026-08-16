@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../constants/socket_events.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/message_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/audio_service.dart';
@@ -16,8 +17,13 @@ import '../../theme/app_colors.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/typing_indicator_bubble.dart';
 import '../../widgets/common/user_avatar.dart';
+import '../home/home_screen.dart';
 
-class ChatRoomScreen extends StatefulWidget {
+// Thin wrapper that scopes a fresh MessageProvider to this specific chat
+// room (created here, not registered globally in main.dart) — message state
+// is only ever needed while this one screen is open, so it's created when
+// the screen opens and disposed automatically when it closes.
+class ChatRoomScreen extends StatelessWidget {
   final String chatId;
   final String contactId;
   final String contactName;
@@ -30,51 +36,59 @@ class ChatRoomScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatRoomScreen> createState() => _ChatRoomScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => MessageProvider(chatId)..init(),
+      child: _ChatRoomView(chatId: chatId, contactId: contactId, contactName: contactName),
+    );
+  }
 }
 
-class _ChatRoomScreenState extends State<ChatRoomScreen> {
+class _ChatRoomView extends StatefulWidget {
+  final String chatId;
+  final String contactId;
+  final String contactName;
+
+  const _ChatRoomView({
+    required this.chatId,
+    required this.contactId,
+    required this.contactName,
+  });
+
+  @override
+  State<_ChatRoomView> createState() => _ChatRoomViewState();
+}
+
+class _ChatRoomViewState extends State<_ChatRoomView> {
   final TextEditingController _messageController = TextEditingController();
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
   final AudioService _audioService = AudioService();
 
-  // Tracks messages this device sent but hasn't heard back from the server
-  // about yet, keyed by a locally-generated tempId. If the server doesn't
-  // confirm (echo) a message back within this window, it's marked 'failed'
-  // so the user gets visual feedback and a retry option instead of the
-  // message silently vanishing (e.g. when offline or the socket drops).
-  static const Duration _sendTimeout = Duration(seconds: 10);
-  final Map<String, Timer> _pendingSendTimers = {};
-  
-  final List<Map<String, dynamic>> _messages = [];
-  bool _isRemoteUserTyping = false;
-  Timer? _typingTimer;
-  bool _isTyping = false;
+  late final MessageProvider _messageProvider;
+  int _lastMessageCount = 0;
+  bool _lastLoadingHistory = true;
+
   bool _isRecording = false;
-  bool _isLoadingHistory = true;
   bool _isUploadingMedia = false;
   bool _showJumpToLatestButton = false;
-  String? _currentUserId;
   Map<String, dynamic>? _replyingTo;
 
-  // Stored so dispose() can unregister exactly these callbacks — without this,
+  // Stored so dispose() can unregister exactly this callback — without this,
   // reopening the same chat repeatedly stacks duplicate listeners on the
   // shared socket singleton, which stops new events from reliably reaching
   // the currently-visible screen (an earlier, already-disposed listener can
   // throw and prevent later listeners for the same event from running).
-  late final void Function(dynamic) _onConnect;
-  late final void Function(dynamic) _onReceiveMessage;
-  late final void Function(dynamic) _onErrorFeedbackMarksFailed;
-  late final void Function(dynamic) _onUserTyping;
-  late final void Function(dynamic) _onMessageEdited;
-  late final void Function(dynamic) _onMessageDeleted;
-  late final void Function(dynamic) _onMessagesRead;
   late final void Function(dynamic) _onErrorFeedback;
 
   @override
   void initState() {
     super.initState();
+
+    _messageProvider = context.read<MessageProvider>();
+    _lastMessageCount = _messageProvider.messages.length;
+    _lastLoadingHistory = _messageProvider.isLoadingHistory;
+    _messageProvider.addListener(_onMessagesChanged);
 
     // Mark this chat as the one currently on screen, so a foreground push
     // notification for it can be suppressed (already visible live here).
@@ -85,126 +99,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // pending tray notification for it instead of leaving it lingering.
     PushNotificationService.cancelForChat(widget.chatId);
 
-    // 1. Join the specific chat room via socket
-    SocketService.joinChat(widget.chatId);
-
-    // Re-join whenever the socket (re)connects — e.g. after the app is backgrounded
-    // and the connection drops — otherwise this screen stops receiving real-time
-    // updates for its own sent messages until it's reopened.
-    _onConnect = (_) {
-      SocketService.joinChat(widget.chatId);
-    };
-    SocketService.on(SocketEvents.connect, _onConnect);
-
-    // 2. Listen for incoming real-time socket events
-    _onReceiveMessage = (data) {
-      if (data['chat_id'] != widget.chatId) return;
-      final incoming = Map<String, dynamic>.from(data);
-      final tempId = incoming['tempId']?.toString();
-
-      setState(() {
-        final pendingIndex = tempId != null ? _messages.indexWhere((m) => m['_tempId'] == tempId) : -1;
-        if (pendingIndex != -1) {
-          // This confirms a message this device just sent — replace the
-          // optimistic placeholder with the server-confirmed message.
-          _messages[pendingIndex] = incoming;
-        } else {
-          _messages.add(incoming);
-        }
-      });
-      if (tempId != null) {
-        _pendingSendTimers.remove(tempId)?.cancel();
-      }
-      _scrollToBottom();
-
-      // Let the sender know their message actually reached this device live,
-      // so their tick updates from 'sent' to 'delivered'.
-      if (_currentUserId != null && incoming['sender_id'] != _currentUserId) {
-        final messageId = incoming['id']?.toString();
-        if (messageId != null && messageId.isNotEmpty) {
-          SocketService.updateMessageStatus(widget.chatId, messageId, 'delivered');
-        }
-
-        // This chat is open right now, so the message is immediately visible
-        // and counts as read — tell the backend straight away instead of
-        // waiting for the next time this screen is opened. Otherwise the
-        // chat list still shows it as unread once you navigate back, since
-        // its unread count is re-fetched fresh from the server.
-        ApiService.markChatMessagesRead(widget.chatId);
-        PushNotificationService.cancelForChat(widget.chatId);
-      }
-    };
-    SocketService.on(SocketEvents.receiveMessage, _onReceiveMessage);
-
-    // If the server rejects a send outright (e.g. an unexpected error while
-    // saving), mark that specific pending message failed immediately instead
-    // of waiting out the full send timeout.
-    _onErrorFeedbackMarksFailed = (data) {
-      final tempId = data['tempId']?.toString();
-      if (tempId == null) return;
-      _pendingSendTimers.remove(tempId)?.cancel();
-      final index = _messages.indexWhere((m) => m['_tempId'] == tempId);
-      if (index != -1 && mounted) {
-        setState(() => _messages[index]['status'] = 'failed');
-      }
-    };
-    SocketService.on(SocketEvents.errorFeedback, _onErrorFeedbackMarksFailed);
-
-    _onUserTyping = (data) {
-      if (data['chatId'] == widget.chatId) {
-        final isTyping = data['isTyping'] == true;
-        final wasTyping = _isRemoteUserTyping;
-        setState(() {
-          _isRemoteUserTyping = isTyping;
-        });
-        // Keep the latest message in view as the typing bubble grows the
-        // column below the list, pushing content up.
-        if (isTyping && !wasTyping) {
-          _scrollToBottom();
-        }
-      }
-    };
-    SocketService.on(SocketEvents.userTyping, _onUserTyping);
-
-    _onMessageEdited = (data) {
-      setState(() {
-        final index = _messages.indexWhere((m) => m['id'] == data['id']);
-        if (index != -1) {
-          _messages[index]['content'] = data['content'];
-          _messages[index]['is_edited'] = true;
-        }
-      });
-    };
-    SocketService.on(SocketEvents.messageEdited, _onMessageEdited);
-
-    _onMessageDeleted = (data) {
-      setState(() {
-        final index = _messages.indexWhere((m) => m['id'] == data['id']);
-        if (index != -1) {
-          _messages[index]['content'] = null;
-          _messages[index]['media_url'] = null;
-          _messages[index]['is_deleted'] = true;
-        }
-      });
-    };
-    SocketService.on(SocketEvents.messageDeleted, _onMessageDeleted);
-
-    // When the other participant reads this chat, mark my sent messages as 'read'
-    // so the delivery ticks update in real time.
-    _onMessagesRead = (data) {
-      if (data['chatId'] != widget.chatId) return;
-      // If I'm the one who just read the chat, my own sent messages weren't affected.
-      if (_currentUserId != null && data['readerId'] == _currentUserId) return;
-      setState(() {
-        for (final m in _messages) {
-          if (m['sender_id'] == _currentUserId && m['status'] != 'read') {
-            m['status'] = 'read';
-          }
-        }
-      });
-    };
-    SocketService.on(SocketEvents.messagesRead, _onMessagesRead);
-
+    // This is a UI-only concern (showing a SnackBar), so it stays registered
+    // directly by the screen rather than living in MessageProvider.
     _onErrorFeedback = (data) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -216,13 +112,32 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // Track which messages are actually on screen so we can show a "more
     // messages" pill whenever there's an unread message hidden below the fold.
     _itemPositionsListener.itemPositions.addListener(_handleItemPositionsChanged);
+  }
 
-    // 3. Load the persisted message history for this chat
-    _loadHistory();
+  // Reacts to MessageProvider changes with the imperative, UI-only side
+  // effects that used to live directly inside the socket listeners: jumping
+  // to the first unread message once history finishes loading, auto-scrolling
+  // to the bottom when a new message is appended, and recomputing whether
+  // the "jump to latest" pill should show.
+  void _onMessagesChanged() {
+    final isLoadingHistory = _messageProvider.isLoadingHistory;
+    if (_lastLoadingHistory && !isLoadingHistory) {
+      _jumpToInitialPosition();
+    }
+    _lastLoadingHistory = isLoadingHistory;
+
+    final messageCount = _messageProvider.messages.length;
+    if (messageCount > _lastMessageCount) {
+      _scrollToBottom();
+    }
+    _lastMessageCount = messageCount;
+
+    _handleItemPositionsChanged();
   }
 
   void _handleItemPositionsChanged() {
-    if (_messages.isEmpty) return;
+    final messages = _messageProvider.messages;
+    if (messages.isEmpty) return;
     final positions = _itemPositionsListener.itemPositions.value;
     if (positions.isEmpty) return;
 
@@ -233,9 +148,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // scrolled away from the very bottom. Once a message has been read
     // (locally, or already marked read in a previous visit to this chat),
     // it no longer counts, so the pill won't reappear for old, read history.
-    final hasUnreadBelow = _messages.asMap().entries.any((entry) =>
+    final hasUnreadBelow = messages.asMap().entries.any((entry) =>
         entry.key > lastVisibleIndex &&
-        entry.value['sender_id'] != _currentUserId &&
+        entry.value['sender_id'] != _messageProvider.currentUserId &&
         entry.value['status'] != 'read' &&
         entry.value['is_deleted'] != true);
 
@@ -274,47 +189,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
-  Future<void> _loadHistory() async {
-    try {
-      final profile = await ApiService.getProfile();
-      _currentUserId = profile['id']?.toString() ?? profile['user_id']?.toString();
-
-      final history = await ApiService.getMessages(widget.chatId);
-      if (!mounted) return;
-
-      setState(() {
-        _messages
-          ..clear()
-          ..addAll(history.whereType<Map>().map((m) => Map<String, dynamic>.from(m)));
-        _isLoadingHistory = false;
-      });
-      _jumpToInitialPosition();
-
-      // Mark the other participant's messages as read now that this chat is open.
-      ApiService.markChatMessagesRead(widget.chatId);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoadingHistory = false);
-    }
-  }
-
   // Jumps straight to the first unread message (from the other participant) so the
   // user lands right where they left off, instead of always landing at the bottom.
   // If everything is already read, it lands on the last message like normal.
   void _jumpToInitialPosition() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_itemScrollController.isAttached || _messages.isEmpty) return;
+      final messages = _messageProvider.messages;
+      if (!_itemScrollController.isAttached || messages.isEmpty) return;
 
-      final firstUnreadIndex = _messages.indexWhere((m) =>
-          m['sender_id'] != _currentUserId &&
+      final firstUnreadIndex = messages.indexWhere((m) =>
+          m['sender_id'] != _messageProvider.currentUserId &&
           m['status'] != 'read' &&
           m['is_deleted'] != true);
 
       if (firstUnreadIndex == -1) {
-        // The sentinel item (index == _messages.length) has ~zero height, so
+        // The sentinel item (index == messages.length) has ~zero height, so
         // aligning its top edge to the bottom of the viewport (alignment 1.0)
         // is equivalent to flushing the real last message against the bottom.
-        _itemScrollController.jumpTo(index: _messages.length, alignment: 1.0);
+        _itemScrollController.jumpTo(index: messages.length, alignment: 1.0);
       } else {
         _itemScrollController.jumpTo(index: firstUnreadIndex, alignment: 0.0);
       }
@@ -332,7 +224,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   // message. jumpTo() performs the same estimate+correct internally but
   // instantly, so any correction is imperceptible.
   //
-  // We target the sentinel item (index == _messages.length, ~zero height)
+  // We target the sentinel item (index == messages.length, ~zero height)
   // rather than the last message itself: alignment positions an item's TOP
   // edge, so aligning the real last message's top to the viewport's bottom
   // (alignment 1.0) would push almost the whole bubble off-screen. Aligning
@@ -340,22 +232,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   // real content's bottom edge against the viewport's bottom, as intended.
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_itemScrollController.isAttached || _messages.isEmpty) return;
-      _itemScrollController.jumpTo(index: _messages.length, alignment: 1.0);
+      final messages = _messageProvider.messages;
+      if (!_itemScrollController.isAttached || messages.isEmpty) return;
+      _itemScrollController.jumpTo(index: messages.length, alignment: 1.0);
     });
   }
 
   void _handleTyping(String text) {
-    if (!_isTyping) {
-      _isTyping = true;
-      SocketService.sendTypingIndicator(widget.chatId, true);
-    }
-
-    _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 2), () {
-      _isTyping = false;
-      SocketService.sendTypingIndicator(widget.chatId, false);
-    });
+    _messageProvider.handleTyping();
   }
 
   // Sets a message as the target of the next send, shown as a preview above
@@ -370,7 +254,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   String _replySenderLabel(Map<String, dynamic> replyTo) {
-    return replyTo['sender_id'] == _currentUserId ? 'You' : widget.contactName;
+    return replyTo['sender_id'] == _messageProvider.currentUserId ? 'You' : widget.contactName;
   }
 
   String _replyPreviewText(Map<String, dynamic> replyTo) {
@@ -393,85 +277,22 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final content = _messageController.text.trim();
     if (content.isEmpty && mediaUrl == null) return;
 
-    final tempId = 'temp_${DateTime.now().microsecondsSinceEpoch}';
-    final replyingTo = _replyingTo;
-
-    setState(() {
-      _messages.add({
-        '_tempId': tempId,
-        'id': '',
-        'chat_id': widget.chatId,
-        'sender_id': _currentUserId,
-        'content': content,
-        'media_url': mediaUrl,
-        'media_type': mediaType,
-        'status': 'sending',
-        'is_edited': false,
-        'is_deleted': false,
-        'reply_to_id': replyingTo?['id'],
-        'reply_to': replyingTo == null
-            ? null
-            : {
-                'id': replyingTo['id'],
-                'sender_id': replyingTo['sender_id'],
-                'content': replyingTo['content'],
-                'media_type': replyingTo['media_type'],
-                'is_deleted': replyingTo['is_deleted'] ?? false,
-              },
-        'created_at': DateTime.now().toIso8601String(),
-      });
-      _replyingTo = null;
-    });
-    _scrollToBottom();
-
-    SocketService.sendMessage(
-      widget.chatId,
+    _messageProvider.sendMessage(
       content,
       mediaUrl: mediaUrl,
       mediaType: mediaType,
-      tempId: tempId,
-      replyToId: replyingTo?['id']?.toString(),
+      replyingTo: _replyingTo,
     );
-    _startSendTimeout(tempId);
 
+    setState(() => _replyingTo = null);
     _messageController.clear();
-    if (_isTyping) {
-      _isTyping = false;
-      SocketService.sendTypingIndicator(widget.chatId, false);
-    }
-  }
-
-  void _startSendTimeout(String tempId) {
-    _pendingSendTimers[tempId]?.cancel();
-    _pendingSendTimers[tempId] = Timer(_sendTimeout, () {
-      _pendingSendTimers.remove(tempId);
-      if (!mounted) return;
-      final index = _messages.indexWhere((m) => m['_tempId'] == tempId);
-      if (index != -1 && _messages[index]['status'] == 'sending') {
-        setState(() => _messages[index]['status'] = 'failed');
-      }
-    });
   }
 
   // Re-sends a message that previously failed (e.g. connection dropped, or
   // the server rejected it), reusing the same tempId so the retried send
   // still replaces this same bubble once confirmed.
   void _retryMessage(String tempId) {
-    final index = _messages.indexWhere((m) => m['_tempId'] == tempId);
-    if (index == -1) return;
-
-    final msg = _messages[index];
-    setState(() => msg['status'] = 'sending');
-
-    SocketService.sendMessage(
-      widget.chatId,
-      msg['content'] ?? '',
-      mediaUrl: msg['media_url'],
-      mediaType: msg['media_type'] ?? 'text',
-      tempId: tempId,
-      replyToId: msg['reply_to_id']?.toString(),
-    );
-    _startSendTimeout(tempId);
+    _messageProvider.retryMessage(tempId);
   }
 
   Future<void> _editMessage(String messageId, String currentContent) async {
@@ -501,11 +322,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     if (newContent == null || newContent.isEmpty || newContent == currentContent) return;
 
-    SocketService.socket.emit(SocketEvents.editMessage, {
-      'messageId': messageId,
-      'chatId': widget.chatId,
-      'newContent': newContent,
-    });
+    _messageProvider.editMessage(messageId, newContent);
   }
 
   Future<void> _confirmDeleteMessage(String messageId) async {
@@ -529,10 +346,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     if (confirmed != true) return;
 
-    SocketService.socket.emit(SocketEvents.deleteMessage, {
-      'messageId': messageId,
-      'chatId': widget.chatId,
-    });
+    _messageProvider.deleteMessage(messageId);
   }
 
   Future<void> _pickAndSendMedia(ImageSource source) async {
@@ -641,7 +455,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     try {
       await context.read<ChatProvider>().removeFriend(widget.chatId);
       if (!mounted) return;
-      Navigator.pop(context);
+      // Land back on the Chats tab specifically (now missing this chat),
+      // rather than just popping to whichever tab happened to be active
+      // when this chat was opened (e.g. Search or Invites).
+      Navigator.popUntil(context, (route) => route.isFirst);
+      HomeScreen.homeKey.currentState?.switchToChatsTab();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -730,25 +548,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (ActiveChatTracker.isChatActive(widget.chatId)) {
       ActiveChatTracker.setActiveChat(null);
     }
-    SocketService.off(SocketEvents.connect, _onConnect);
-    SocketService.off(SocketEvents.receiveMessage, _onReceiveMessage);
-    SocketService.off(SocketEvents.errorFeedback, _onErrorFeedbackMarksFailed);
-    SocketService.off(SocketEvents.userTyping, _onUserTyping);
-    SocketService.off(SocketEvents.messageEdited, _onMessageEdited);
-    SocketService.off(SocketEvents.messageDeleted, _onMessageDeleted);
-    SocketService.off(SocketEvents.messagesRead, _onMessagesRead);
+    _messageProvider.removeListener(_onMessagesChanged);
     SocketService.off(SocketEvents.errorFeedback, _onErrorFeedback);
     _itemPositionsListener.itemPositions.removeListener(_handleItemPositionsChanged);
     _messageController.dispose();
-    _typingTimer?.cancel();
-    for (final timer in _pendingSendTimers.values) {
-      timer.cancel();
-    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final messageProvider = context.watch<MessageProvider>();
+    final messages = messageProvider.messages;
+    final isLoadingHistory = messageProvider.isLoadingHistory;
+    final isRemoteUserTyping = messageProvider.isRemoteUserTyping;
+    final currentUserId = messageProvider.currentUserId;
     final isMuted = NotificationSettingsService.isChatMuted(widget.chatId);
 
     return Scaffold(
@@ -795,9 +608,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           Expanded(
             child: Stack(
               children: [
-                _isLoadingHistory
+                isLoadingHistory
                     ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-                    : _messages.isEmpty
+                    : messages.isEmpty
                         ? const Center(child: Text('Say hello and start the conversation!', style: TextStyle(color: AppColors.textSecondary)))
                         : ScrollablePositionedList.builder(
                             itemScrollController: _itemScrollController,
@@ -805,13 +618,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             // +1 for a trailing zero-height sentinel used to reliably
                             // jump to the true bottom (see _scrollToBottom / _jumpToInitialPosition).
-                            itemCount: _messages.length + 1,
+                            itemCount: messages.length + 1,
                             itemBuilder: (context, index) {
-                              if (index == _messages.length) {
+                              if (index == messages.length) {
                                 return const SizedBox.shrink();
                               }
-                              final msg = _messages[index];
-                              final bool isMe = _currentUserId != null && msg['sender_id'] == _currentUserId;
+                              final msg = messages[index];
+                              final bool isMe = currentUserId != null && msg['sender_id'] == currentUserId;
                               final bool isDeleted = msg['is_deleted'] ?? false;
                               final String status = msg['status'] ?? 'sent';
                               // A message that hasn't been confirmed by the server yet
@@ -892,7 +705,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               opacity: animation,
               child: SizeTransition(sizeFactor: animation, axisAlignment: -1, child: child),
             ),
-            child: _isRemoteUserTyping
+            child: isRemoteUserTyping
                 ? const Padding(
                     key: ValueKey('typing'),
                     padding: EdgeInsets.only(top: 4),
