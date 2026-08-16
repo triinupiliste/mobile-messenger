@@ -38,8 +38,13 @@ export class MediaController {
         const encrypted = encryptBuffer(file.buffer);
         await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), encrypted);
 
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const url = `${baseUrl}/uploads/${filename}`;
+        // Stored/returned as a path relative to this server, not a full URL
+        // with the host baked in — the host (e.g. an ngrok tunnel) can change
+        // between restarts, which would otherwise turn every previously
+        // uploaded avatar/media URL into a dead link. The client resolves
+        // this against whatever the current server address is when it
+        // actually requests the file.
+        const url = `/uploads/${filename}`;
 
         res.status(201).json({ url });
     }

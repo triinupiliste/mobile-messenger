@@ -52,11 +52,22 @@ class ApiService {
   // audioplayers) fetch a URL directly and can't attach an Authorization
   // header, so the token is appended as a query parameter instead. Call this
   // wherever a media URL from the backend is handed to one of those APIs.
+  //
+  // The backend now returns/stores these as paths relative to itself (e.g.
+  // '/uploads/xyz.jpg') rather than a full URL, since the host (e.g. an
+  // ngrok tunnel) can change between restarts — a baked-in absolute URL
+  // would otherwise turn into a dead link the next time that happens. Old
+  // rows created before this change may still hold a full absolute URL;
+  // those are left as-is here (already a dead link if the host has since
+  // changed — re-saving/re-uploading fixes it).
   static String mediaUrl(String url) {
+    final absoluteUrl = url.startsWith('http://') || url.startsWith('https://')
+        ? url
+        : '$serverBaseUrl$url';
     final token = StorageService.cachedToken;
-    if (token == null || token.isEmpty) return url;
-    final uri = Uri.tryParse(url);
-    if (uri == null) return url;
+    if (token == null || token.isEmpty) return absoluteUrl;
+    final uri = Uri.tryParse(absoluteUrl);
+    if (uri == null) return absoluteUrl;
     final query = Map<String, String>.from(uri.queryParameters)..['token'] = token;
     return uri.replace(queryParameters: query).toString();
   }
