@@ -1,5 +1,5 @@
 import pool from '../config/database';
-import { Invite, InviteStatus } from '../models/invite.model';
+import { IncomingInviteItem, Invite, InviteStatus, OutgoingInviteItem } from '../models/invite.model';
 import { decryptText } from '../utils/encryption.util';
 
 export class InviteRepository {
@@ -22,7 +22,7 @@ export class InviteRepository {
         return result.rows[0] || null;
     }
 
-    static async getPendingInvitesForUser(userId: string) {
+    static async getPendingInvitesForUser(userId: string): Promise<IncomingInviteItem[]> {
         const query = `
             SELECT i.id, i.sender_id, i.status, i.created_at,
                    json_build_object(
@@ -49,7 +49,7 @@ export class InviteRepository {
     // Same shape as getPendingInvitesForUser's rows, but for a single invite —
     // used to emit a fully-enriched 'new_invite' socket payload (with sender
     // username/avatar) right when it's created, instead of just raw columns.
-    static async getIncomingInviteById(inviteId: string) {
+    static async getIncomingInviteById(inviteId: string): Promise<IncomingInviteItem | null> {
         const query = `
             SELECT i.id, i.sender_id, i.status, i.created_at,
                    json_build_object(
@@ -74,7 +74,7 @@ export class InviteRepository {
         };
     }
 
-    static async getOutgoingInvitesForUser(userId: string) {
+    static async getOutgoingInvitesForUser(userId: string): Promise<OutgoingInviteItem[]> {
         const query = `
             SELECT i.id, i.receiver_id, i.status, i.created_at,
                    json_build_object(
