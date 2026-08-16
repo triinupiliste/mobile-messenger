@@ -126,36 +126,64 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
                 confirmDismiss: (direction) async {
+                  // Captured before mutating the provider: toggleArchiveChat/
+                  // deleteChat call notifyListeners() synchronously (up to
+                  // their first `await`), which schedules this list item to
+                  // be rebuilt away (it's filtered out / removed) on the very
+                  // next frame. Looking up ScaffoldMessenger.of(context) only
+                  // AFTER that point risks resolving it against a context
+                  // that's already on its way out; grabbing the messenger
+                  // state itself first sidesteps that entirely, since the
+                  // state object stays valid regardless of what happens to
+                  // this specific list item afterwards.
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.clearSnackBars();
+
                   if (direction == DismissDirection.startToEnd) {
                     chatProvider.toggleArchiveChat(chatId);
-                    ScaffoldMessenger.of(context)
-                      ..clearSnackBars()
-                      ..showSnackBar(
-                        SnackBar(
-                          content: Text(isArchived ? 'Chat unarchived' : 'Chat archived'),
-                          duration: const Duration(seconds: 5),
-                          action: SnackBarAction(
-                            label: 'Undo',
-                            onPressed: () => chatProvider.toggleArchiveChat(chatId),
-                          ),
-                        ),
-                      );
-                    return false;
-                  }
-
-                  chatProvider.deleteChat(chatId);
-                  ScaffoldMessenger.of(context)
-                    ..clearSnackBars()
-                    ..showSnackBar(
+                    final controller = messenger.showSnackBar(
                       SnackBar(
-                        content: const Text('Chat deleted'),
+                        content: Text(isArchived ? 'Chat unarchived' : 'Chat archived'),
                         duration: const Duration(seconds: 5),
                         action: SnackBarAction(
                           label: 'Undo',
-                          onPressed: () => chatProvider.undoDeleteChat(),
+                          onPressed: () => chatProvider.toggleArchiveChat(chatId),
                         ),
                       ),
                     );
+                    // Belt-and-braces: SnackBar's own `duration` is supposed
+                    // to auto-dismiss it, but that relies on an internal
+                    // AnimationController/Timer chain that has proven
+                    // unreliable here (it's been observed staying up
+                    // indefinitely). Explicitly closing this exact SnackBar's
+                    // controller after 5 seconds guarantees it goes away
+                    // regardless of what's interfering with the built-in
+                    // timer. Calling .close() on a SnackBar that already
+                    // closed itself (e.g. dismissed by a later swipe's
+                    // clearSnackBars() call above) is a harmless no-op.
+                    Future.delayed(const Duration(seconds: 5), controller.close);
+                    // The item always disappears from whichever list is
+                    // currently shown once toggled (Chats vs Archived are
+                    // mutually exclusive filters), so Dismissible needs to be
+                    // told it's actually being removed — returning `false`
+                    // here while the item vanishes anyway due to filtering
+                    // left Dismissible expecting to animate back to a spot
+                    // that no longer exists in the list.
+                    return true;
+                  }
+
+                  chatProvider.deleteChat(chatId);
+                  final controller = messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('Chat deleted'),
+                      duration: const Duration(seconds: 5),
+                      action: SnackBarAction(
+                        label: 'Undo',
+                        onPressed: () => chatProvider.undoDeleteChat(),
+                      ),
+                    ),
+                  );
+                  Future.delayed(const Duration(seconds: 5), controller.close);
                   return true;
                 },
                 child: ListTile(
