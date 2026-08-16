@@ -99,7 +99,7 @@ export class InviteController {
             if (status === 'accepted') {
                 const existingChatId = await ChatRepository.findChatBetweenUsers(invite.sender_id, invite.receiver_id);
                 if (existingChatId) {
-                    await ChatRepository.reviveFriendship(existingChatId);
+                    await ChatRepository.reviveForAllParticipants(existingChatId);
                 } else {
                     await ChatRepository.createChatBetweenUsers(invite.sender_id, invite.receiver_id);
                 }

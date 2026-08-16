@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
-import 'providers/message_provider.dart';
 import 'providers/invite_provider.dart';
 import 'services/push_notification_service.dart';
 import 'services/theme_service.dart';
@@ -100,7 +99,6 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
-        ChangeNotifierProvider(create: (_) => MessageProvider()),
         ChangeNotifierProvider(create: (_) => InviteProvider()),
       ],
       child: MaterialApp(

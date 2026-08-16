@@ -119,8 +119,6 @@ export class UserController {
             const currentUserId = tokenUser?.userId ?? tokenUser?.id;
             const searchTerm = req.query.q as string;
 
-            console.log('🔍 Search Debug -> currentUserId:', currentUserId, '| searchTerm:', searchTerm);
-
             if (!searchTerm) {
                 res.status(400).json({ error: 'Search query parameter "q" is required.' });
                 return;

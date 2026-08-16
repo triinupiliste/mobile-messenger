@@ -132,8 +132,11 @@ export class ChatRepository {
         await pool.query(query, [chatId, userId]);
     }
 
-    // A new message un-archives/un-deletes the chat for anyone who'd hidden it
-    // — it should stay hidden only until the next message arrives.
+    // Un-hides a chat for all participants who'd archived/deleted/unfriended
+    // it — used both when a new message arrives (it should stay hidden only
+    // until the next message) and when a re-accepted invite restores a chat
+    // with a previously-unfriended contact, so the old history reappears
+    // instead of starting fresh.
     static async reviveForAllParticipants(chatId: string): Promise<void> {
         const query = `
             UPDATE chat_participants 
@@ -150,17 +153,6 @@ export class ChatRepository {
         const query = `
             UPDATE chat_participants 
             SET is_deleted = TRUE, is_archived = FALSE 
-            WHERE chat_id = $1`;
-        await pool.query(query, [chatId]);
-    }
-
-    // Un-hides a previously unfriended chat for both participants when they
-    // reconnect (invite accepted again), restoring their old history instead
-    // of starting a new chat from scratch.
-    static async reviveFriendship(chatId: string): Promise<void> {
-        const query = `
-            UPDATE chat_participants 
-            SET is_deleted = FALSE, is_archived = FALSE 
             WHERE chat_id = $1`;
         await pool.query(query, [chatId]);
     }
