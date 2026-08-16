@@ -106,7 +106,7 @@ class AvatarPicker extends StatelessWidget {
     final Widget avatar = selectedFile != null
         ? CircleAvatar(
             radius: 50,
-            backgroundColor: AppColors.primary.withOpacity(0.1),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
             backgroundImage: FileImage(selectedFile!),
           )
         : UserAvatar(

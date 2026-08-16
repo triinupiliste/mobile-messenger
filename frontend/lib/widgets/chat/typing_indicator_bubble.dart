@@ -47,7 +47,7 @@ class _TypingIndicatorBubbleState extends State<TypingIndicatorBubble>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -72,7 +72,7 @@ class _TypingIndicatorBubbleState extends State<TypingIndicatorBubble>
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.primary.withOpacity(0.6 + 0.4 * bounce),
+                        color: AppColors.primary.withValues(alpha: 0.6 + 0.4 * bounce),
                       ),
                     ),
                   ),

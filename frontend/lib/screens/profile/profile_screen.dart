@@ -336,7 +336,7 @@ class _ProfileField extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.textSecondary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

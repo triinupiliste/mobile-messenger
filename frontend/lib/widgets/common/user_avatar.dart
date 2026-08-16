@@ -30,7 +30,7 @@ class UserAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: hasUrl ? AppColors.primary.withOpacity(0.1) : AppColors.primary,
+      backgroundColor: hasUrl ? AppColors.primary.withValues(alpha: 0.1) : AppColors.primary,
       backgroundImage: hasUrl ? NetworkImage(ApiService.mediaUrl(avatarUrl!)) : null,
       child: hasUrl
           ? null

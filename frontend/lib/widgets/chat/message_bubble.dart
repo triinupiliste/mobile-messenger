@@ -256,7 +256,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -270,7 +270,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
-                          color: (isMe ? Colors.white : AppColors.primary).withOpacity(0.12),
+                          color: (isMe ? Colors.white : AppColors.primary).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                           border: Border(
                             left: BorderSide(color: isMe ? Colors.white70 : AppColors.primary, width: 3),
