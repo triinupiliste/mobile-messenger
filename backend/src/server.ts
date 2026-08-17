@@ -14,6 +14,7 @@ import { errorHandler } from './middleware/error.middleware';
 import { verifyMediaToken } from './middleware/auth.middleware';
 import { registerChatHandlers } from './sockets/chat.socket';
 import { setIO } from './sockets/socket.instance';
+import { runMigrations } from './config/migrate';
 
 dotenv.config();
 
@@ -53,8 +54,19 @@ app.use(errorHandler);
 registerChatHandlers(io);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-    console.log(`🚀 Backend server running on port ${PORT}`);
-});
+
+// Ensure the schema exists before accepting any requests — critical for a
+// fresh deploy against a managed Postgres host (e.g. Railway) that has no
+// existing tables yet.
+runMigrations()
+    .catch((err) => {
+        console.error('Failed to run database migrations:', err);
+        process.exit(1);
+    })
+    .then(() => {
+        server.listen(PORT, () => {
+            console.log(`🚀 Backend server running on port ${PORT}`);
+        });
+    });
 
 export default server;
