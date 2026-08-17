@@ -9,11 +9,15 @@ export function errorHandler(
     console.error('🔥 Global Error Caught:', err);
 
     const statusCode = err.statusCode || 500;
-    const message = err.message || 'Internal Server Error';
+
+    // 🔒 Security: Never leak raw internal error messages for 500 server crashes in production
+    const message = (statusCode === 500 && process.env.NODE_ENV === 'production')
+        ? 'Internal Server Error'
+        : (err.message || 'Internal Server Error');
 
     res.status(statusCode).json({
         error: message,
-        // Include stack trace only if running in development mode for easier debugging
+        // Include stack trace only if running in development mode
         ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
 }
