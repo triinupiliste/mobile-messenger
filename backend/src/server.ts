@@ -40,6 +40,11 @@ app.use(express.urlencoded({ extended: true }));
 // fetched by anyone who merely guesses/observes a filename.
 app.get('/uploads/:filename', verifyMediaToken, MediaController.getMedia);
 
+// Root health-check route before your API routes
+app.get('/', (req, res) => {
+    res.status(200).json({ status: 'ok', message: 'Mobile Messenger API is running' });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -64,7 +69,7 @@ runMigrations()
         process.exit(1);
     })
     .then(() => {
-        server.listen(PORT, () => {
+        server.listen(Number(PORT), '0.0.0.0', () => {
             console.log(`🚀 Backend server running on port ${PORT}`);
         });
     });
