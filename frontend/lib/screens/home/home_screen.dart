@@ -60,23 +60,29 @@ class HomeScreenState extends State<HomeScreen> {
         onTap: (index) async {
           if (index == _currentIndex) return;
 
+          // Capture providers *before* any async gaps to avoid context warnings
+          final chatProvider = context.read<ChatProvider>();
+          final inviteProvider = context.read<InviteProvider>();
+
           if (_currentIndex == _profileTabIndex) {
             final canLeave =
                 await _profileKey.currentState?.confirmDiscardChangesIfNeeded() ?? true;
             if (!canLeave) return;
           }
 
+          if (!mounted) return;
+
           setState(() {
             _currentIndex = index;
           });
+
           if (index == 0) {
-            await context.read<ChatProvider>().fetchChats();
-          }
-          if (index == _invitesTabIndex) {
-            await context.read<InviteProvider>().fetchInvites();
-            if (mounted) {
-              context.read<InviteProvider>().markIncomingSeen();
-            }
+            await chatProvider.fetchChats();
+          } else if (index == _invitesTabIndex) {
+            await inviteProvider.fetchInvites();
+            
+            if (!mounted) return;
+            inviteProvider.markIncomingSeen();
           }
         },
         type: BottomNavigationBarType.fixed,

@@ -5,4 +5,4 @@
 //     'http://127.0.0.1:5000'
 // - Two+ real phones on their own networks, backend exposed via ngrok:
 //     'https://<your-subdomain>.ngrok-free.app'
-const String serverBaseUrl = 'https://mobile-messenger-production.up.railway.app/';
+const String serverBaseUrl = 'https://mobile-messenger-production.up.railway.app';

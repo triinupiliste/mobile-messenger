@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/socket_service.dart';
@@ -99,7 +100,7 @@ class AuthProvider with ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print(
+      debugPrint(
           'Registration Exception: $e'); // <-- This prints the exact cause in your terminal
       return 'Network error occurred during registration: $e';
     }
@@ -114,19 +115,19 @@ class AuthProvider with ChangeNotifier {
     try {
       await StorageService.clearToken();
     } catch (e) {
-      print('Error clearing token: $e');
+      debugPrint('Error clearing token: $e');
     }
 
     try {
       SocketService.disconnect();
     } catch (e) {
-      print('Error disconnecting socket: $e');
+      debugPrint('Error disconnecting socket: $e');
     }
 
     try {
       await PushNotificationService.clearToken();
     } catch (e) {
-      print('Error clearing push notification token: $e');
+      debugPrint('Error clearing push notification token: $e');
     }
   }
 }

@@ -703,7 +703,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
             duration: const Duration(milliseconds: 200),
             transitionBuilder: (child, animation) => FadeTransition(
               opacity: animation,
-              child: SizeTransition(sizeFactor: animation, axisAlignment: -1, child: child),
+              child: SizeTransition(sizeFactor: animation, alignment: Alignment(-1.0, -1.0), child: child),
             ),
             child: isRemoteUserTyping
                 ? const Padding(

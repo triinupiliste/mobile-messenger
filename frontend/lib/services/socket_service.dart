@@ -1,19 +1,20 @@
 import 'dart:async';
 
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:flutter/foundation.dart';
 import '../config/server_config.dart';
 import '../constants/socket_events.dart';
 import 'storage_service.dart';
 
 class SocketService {
-  static IO.Socket? _socket;
+  static io.Socket? _socket;
   // The auth token the current _socket connection was created with, so we can
   // detect a different user logging in on the same app process and force a
   // fresh connection instead of silently keeping the previous user's socket.
   static String? _connectedToken;
 
   // Non-nullable getter to keep all existing provider and screen calls working seamlessly
-  static IO.Socket get socket {
+  static io.Socket get socket {
     if (_socket == null) {
       throw Exception('Socket has not been initialized. Call initSocket() first.');
     }
@@ -35,27 +36,26 @@ class SocketService {
     }
 
     _connectedToken = token;
-    _socket = IO.io(serverBaseUrl, <String, dynamic>{
+    _socket = io.io(serverBaseUrl, <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
       'auth': {'token': token},
-      'extraHeaders': {'ngrok-skip-browser-warning': 'true'},
     });
 
     final connected = Completer<void>();
 
     _socket!.onConnect((_) {
-      print('🔌 Connected to Socket.io server');
+      debugPrint('🔌 Connected to Socket.io server');
       if (!connected.isCompleted) connected.complete();
     });
 
     _socket!.onConnectError((error) {
-      print('🔌 Socket connect error: $error');
+      debugPrint('🔌 Socket connect error: $error');
       if (!connected.isCompleted) connected.complete();
     });
 
     _socket!.onDisconnect((_) {
-      print('🔌 Disconnected from Socket.io server');
+      debugPrint('🔌 Disconnected from Socket.io server');
     });
 
     _socket!.connect();
@@ -104,10 +104,10 @@ class SocketService {
         _socket!.disconnect();
         _socket = null;
         _connectedToken = null;
-        print('🔌 Socket successfully disconnected and cleared.');
+        debugPrint('🔌 Socket successfully disconnected and cleared.');
       }
     } catch (e) {
-      print('Error disconnecting socket: $e');
+      debugPrint('Error disconnecting socket: $e');
     }
   }
 

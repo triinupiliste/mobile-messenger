@@ -47,6 +47,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _passwordController.text.trim(),
     );
 
+    // Guard the async gap right here
+    if (!mounted) return;
+
     setState(() {
       _isLoading = false;
     });
@@ -57,7 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful! Please log in.')),
+        const SnackBar(content: Text('Registration successful! Verification email sent.')),
       );
       Navigator.pop(context);
     }
