@@ -1,15 +1,28 @@
 import admin from 'firebase-admin';
+import fs from 'fs';
 
-// Firebase Admin needs a service account credential to send pushes. We look
-// for it at the path given by GOOGLE_APPLICATION_CREDENTIALS (Firebase's
-// standard auto-detected env var). Until the user creates a Firebase project
-// and drops the generated service-account JSON at that path, push sending is
-// simply disabled (no-op) instead of crashing the server.
+// Firebase Admin needs a service account credential to send pushes. Locally,
+// docker-compose mounts backend/secrets and points GOOGLE_APPLICATION_CREDENTIALS
+// at the mounted JSON file. That file is gitignored (it's a credential) and
+// never reaches managed hosts like Railway, which can't mount a local file
+// anyway — so on Railway the credential is instead supplied as a
+// base64-encoded env var (FIREBASE_SERVICE_ACCOUNT_BASE64) and decoded here.
+// Until one of the two is configured, push sending is simply disabled
+// (no-op) instead of crashing the server.
 let pushEnabled = false;
 
 try {
+    const base64Credentials = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
     const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    if (credentialsPath && require('fs').existsSync(credentialsPath)) {
+
+    if (base64Credentials) {
+        const serviceAccount = JSON.parse(Buffer.from(base64Credentials, 'base64').toString('utf-8'));
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+        });
+        pushEnabled = true;
+        console.log('✅ Firebase Admin initialized from FIREBASE_SERVICE_ACCOUNT_BASE64 — push notifications enabled.');
+    } else if (credentialsPath && fs.existsSync(credentialsPath)) {
         admin.initializeApp({
             credential: admin.credential.applicationDefault(),
         });
@@ -17,8 +30,8 @@ try {
         console.log('✅ Firebase Admin initialized — push notifications enabled.');
     } else {
         console.warn(
-            '⚠️  Firebase service account not found at GOOGLE_APPLICATION_CREDENTIALS — ' +
-            'push notifications are disabled until it is configured.'
+            '⚠️  No Firebase credentials found (checked FIREBASE_SERVICE_ACCOUNT_BASE64 and ' +
+            'GOOGLE_APPLICATION_CREDENTIALS) — push notifications are disabled until one is configured.'
         );
     }
 } catch (error) {
