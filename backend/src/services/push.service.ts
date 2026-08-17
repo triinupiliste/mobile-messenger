@@ -16,9 +16,22 @@ try {
     const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
     if (base64Credentials) {
-        const serviceAccount = JSON.parse(Buffer.from(base64Credentials, 'base64').toString('utf-8'));
+        // Strip characters that commonly sneak in when pasting a long value into
+        // a web UI env var editor (wrapping quotes, trailing newline, or the
+        // value getting soft-wrapped across lines) — all invalid in base64.
+        const cleaned = base64Credentials.trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
+        let serviceAccount: unknown;
+        try {
+            serviceAccount = JSON.parse(Buffer.from(cleaned, 'base64').toString('utf-8'));
+        } catch (parseError) {
+            throw new Error(
+                'FIREBASE_SERVICE_ACCOUNT_BASE64 did not decode to valid JSON — re-copy it fresh ' +
+                'with `base64 -w0 secrets/firebase-service-account.json` and make sure no quotes, ' +
+                'spaces, or line breaks were added when pasting it into Railway.',
+            );
+        }
         admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
+            credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
         });
         pushEnabled = true;
         console.log('✅ Firebase Admin initialized from FIREBASE_SERVICE_ACCOUNT_BASE64 — push notifications enabled.');
