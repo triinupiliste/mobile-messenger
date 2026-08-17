@@ -1,6 +1,6 @@
 import crypto from 'crypto';
+import { ENCRYPTION_KEY } from '../config/env';
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex'); // Must be 32 bytes hex or string
 const IV_LENGTH = 16; // AES block size
 
 export function encryptText(text: string): string {

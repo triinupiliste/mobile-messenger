@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'crypto';
 import { UserRepository } from '../repositories/user.repository';
 import { validatePasswordStrength, isValidEmail } from '../utils/validator.util';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service';
+import { JWT_SECRET } from '../config/env';
 
 const VERIFICATION_TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
@@ -148,7 +149,7 @@ export class AuthController {
                 return;
             }
 
-            const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+            const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 
             res.status(200).json({ message: 'Login successful', token, user: { id: user.id, email: user.email, username: user.username } });
         } catch (error) {

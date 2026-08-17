@@ -4,6 +4,7 @@ import { MessageRepository } from '../repositories/message.repository';
 import { ChatRepository } from '../repositories/chat.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { PushService } from '../services/push.service';
+import { JWT_SECRET } from '../config/env';
 
 function buildMessagePreview(content: string | null | undefined, mediaType: string): string {
     switch (mediaType) {
@@ -31,7 +32,7 @@ export function registerChatHandlers(io: Server) {
             return next(new Error('Authentication error: Token missing'));
         }
 
-        jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err: any, decoded: any) => {
+        jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
             if (err) {
                 return next(new Error('Authentication error: Invalid or expired token'));
             }
