@@ -17,10 +17,14 @@ export function generateStoredFilename(originalName: string): string {
 // Files are encrypted (see MediaController.uploadMedia) before they're written to
 // disk, so multer only needs to buffer the raw upload in memory rather than
 // writing plaintext straight to disk itself.
-// 20MB limit to match the app's client-side media size check
+// Videos are compressed server-side (see video.util.ts) after upload but
+// before storage, so the raw upload is allowed to be much larger than the
+// final 20MB limit enforced post-compression — 150MB comfortably covers a
+// 60-second phone-recorded clip at typical bitrates while still bounding how
+// much memory/disk a single upload can consume.
 export const uploadMedia = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 20 * 1024 * 1024 },
+    limits: { fileSize: 150 * 1024 * 1024 },
 });
 
 // Profile pictures are restricted to JPEG/PNG and a smaller 5MB limit, unlike

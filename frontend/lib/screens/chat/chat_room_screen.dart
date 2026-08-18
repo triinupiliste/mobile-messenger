@@ -415,32 +415,50 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       if (choice == 'image') {
         pickedFile = await picker.pickImage(source: source);
       } else {
-        // Cap recording length in the native camera UI. Video bitrate varies
-        // a lot by device (1080p vs 4K, fps, codec), so this doesn't
-        // guarantee staying under the 20MB limit checked below — but it
-        // gives a predictable, consistent limit instead of letting someone
-        // film a long clip only to have it rejected afterwards.
+        // Cap recording length as a sanity bound on upload size/time — actual
+        // compression now happens server-side (see
+        // backend/src/utils/video.util.ts) using ffmpeg, since the on-device
+        // video_compress plugin proved unreliable (silent hangs, broken
+        // output paths on some devices/OS versions). A minute of typical
+        // phone video comfortably fits within the server's raw upload limit.
         pickedFile = await picker.pickVideo(
           source: source,
-          maxDuration: const Duration(seconds: 60),
+          maxDuration: const Duration(minutes: 1),
         );
       }
     }
 
-    if (pickedFile != null) {
+    if (pickedFile == null) return;
+
+    try {
       final file = File(pickedFile.path);
       final fileSizeInMB = await file.length() / (1024 * 1024);
 
-      if (fileSizeInMB > 20) {
+      // Videos are compressed server-side after upload, so they're only
+      // rejected here if they're too large to even attempt uploading (the
+      // server enforces the real 20MB-after-compression limit and returns a
+      // clear error if a clip still doesn't fit). Non-video media isn't
+      // compressed, so the 20MB limit is enforced directly on-device.
+      if (mediaKind == 'video' ? fileSizeInMB > 150 : fileSizeInMB > 20) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Media file size exceeds the 20MB limit.')),
-          );
+          final message = mediaKind == 'video'
+              ? 'This video is too large to send. Try a shorter clip.'
+              : 'Media file size exceeds the 20MB limit.';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
         }
         return;
       }
 
       await _uploadAndSendMedia(file, mediaKind);
+    } catch (e) {
+      // Surface anything unexpected (e.g. a picker/file-system error) instead
+      // of leaving the user staring at a picker that closed with nothing
+      // visibly happening.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to prepare $mediaKind: ${e.toString().replaceFirst('Exception: ', '')}')),
+        );
+      }
     }
   }
 

@@ -3,6 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import { UPLOAD_DIR, generateStoredFilename } from '../middleware/upload.middleware';
 import { encryptBuffer, decryptBuffer } from '../utils/encryption.util';
+import { compressVideo } from '../utils/video.util';
+
+const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp']);
+
+// Final size cap enforced after compression, matching the client's limit.
+const MAX_MEDIA_SIZE_BYTES = 20 * 1024 * 1024;
 
 const MIME_TYPES_BY_EXTENSION: Record<string, string> = {
     '.jpg': 'image/jpeg',
@@ -33,9 +39,37 @@ export class MediaController {
             return;
         }
 
+        let buffer = file.buffer;
+        let originalName = file.originalname;
+        const extension = path.extname(originalName).toLowerCase();
+        const isVideo = VIDEO_EXTENSIONS.has(extension);
+
+        if (isVideo) {
+            try {
+                buffer = await compressVideo(buffer, extension);
+                // ffmpeg always outputs an MP4 container regardless of the
+                // input format, so reflect that in the stored filename.
+                originalName = `${path.parse(originalName).name}.mp4`;
+            } catch (error) {
+                // Fall back to storing the original, uncompressed file rather
+                // than failing the whole send — the size check below still
+                // protects against anything too large to store.
+                console.error('Video compression failed, storing original file instead:', error);
+                buffer = file.buffer;
+            }
+        }
+
+        if (buffer.length > MAX_MEDIA_SIZE_BYTES) {
+            const message = isVideo
+                ? 'This video is too large to send even after compression. Try a shorter clip.'
+                : 'Media file size exceeds the 20MB limit.';
+            res.status(413).json({ error: message });
+            return;
+        }
+
         // Encrypt the raw file bytes before they ever touch disk.
-        const filename = generateStoredFilename(file.originalname);
-        const encrypted = encryptBuffer(file.buffer);
+        const filename = generateStoredFilename(originalName);
+        const encrypted = encryptBuffer(buffer);
         await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), encrypted);
 
         // Stored/returned as a path relative to this server, not a full URL
