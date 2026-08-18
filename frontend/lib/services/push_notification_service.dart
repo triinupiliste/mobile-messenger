@@ -124,6 +124,21 @@ class PushNotificationService {
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_pushChannel);
 
+      // If the app was fully terminated, tapping our tray notification just
+      // cold-starts it fresh — `onDidReceiveNotificationResponse` above only
+      // fires while the plugin's engine is already alive (foreground or
+      // backgrounded-but-running), and `getInitialMessage()` below never
+      // recognizes these taps either, since these are data-only FCM messages
+      // with no native `notification` payload, so Android/FCM never tags the
+      // launch as notification-caused. `getNotificationAppLaunchDetails()` is
+      // the only API that can tell us this cold start was caused by tapping
+      // one of our own locally-shown notifications, and hand back its payload.
+      final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+      final launchPayload = launchDetails?.notificationResponse?.payload;
+      if (launchDetails?.didNotificationLaunchApp == true && launchPayload != null) {
+        _handleTap(Map<String, dynamic>.from(jsonDecode(launchPayload)));
+      }
+
       messaging.onTokenRefresh.listen((token) => ApiService.registerFcmToken(token));
 
       // Foreground: Android/FCM won't auto-show a system banner while the app is

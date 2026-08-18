@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum AppThemeName { sunsetCoral, calmForest }
+enum AppThemeName { sunsetCoral, calmForest, oceanBlue }
 
 class AppColors {
   // The vibrant, "strongest" accent color — used for buttons, active icons,
@@ -13,6 +13,10 @@ class AppColors {
   static const secondary = Color(0xFF2D3142);   // Deep Twilight Indigo
   static const surface = Colors.white;
   static const error = Color(0xFFD90429);
+  static const errorBackground = Color(0xFFFFEBEE); // Light red backdrop for error banners
+  static const errorBorder = Color(0xFFEF9A9A);     // Border tone paired with errorBackground
+  static const warning = Color(0xFFFFA000);         // Amber accent for archive-style actions
+  static const onPrimary = Colors.white;            // Text/icons drawn on colored surfaces
   static const textPrimary = Color(0xFF2D3142);
   static const textSecondary = Color(0xFF8D99AE);
 
@@ -36,6 +40,8 @@ class AppColors {
         return const Color(0xFF3F9142); // Vibrant Calm Forest Green
       case AppThemeName.sunsetCoral:
         return const Color(0xFFFF6B6B); // Vibrant Sunset Coral
+      case AppThemeName.oceanBlue:
+        return const Color(0xFF1E88E5); // Ocean Blue Primary
     }
   }
 
@@ -45,6 +51,8 @@ class AppColors {
         return const Color(0xFFF1F8F2); // Lightest Calm Forest Green
       case AppThemeName.sunsetCoral:
         return const Color(0xFFFFF5F2); // Soft Warm Sand / Peach
+      case AppThemeName.oceanBlue:
+        return const Color(0xFFE3F2FD); // Ocean Blue Background Tint
     }
   }
 }

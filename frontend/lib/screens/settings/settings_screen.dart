@@ -25,6 +25,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       label: 'Calm Forest',
       description: 'A calm, green take on the same look',
     ),
+    (
+      theme: AppThemeName.oceanBlue,
+      label: 'Ocean Blue',
+      description: 'A fresh, modern blue palette',
+    ),
   ];
 
   Future<void> _selectTheme(AppThemeName theme) async {

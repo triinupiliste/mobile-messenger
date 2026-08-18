@@ -121,12 +121,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      border: Border.all(color: Colors.red.shade200),
+                      color: AppColors.errorBackground,
+                      border: Border.all(color: AppColors.errorBorder),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(_errorMessage!,
-                        style: TextStyle(color: Colors.red.shade700)),
+                        style: const TextStyle(color: AppColors.error)),
                   ),
                 if (context.watch<AuthProvider>().emailVerificationRequired)
                   Padding(
@@ -175,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: AppColors.onPrimary)
                       : const Text('Log In',
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold)),

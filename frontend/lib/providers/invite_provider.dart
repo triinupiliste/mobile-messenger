@@ -117,6 +117,13 @@ class InviteProvider with ChangeNotifier {
 
   Future<void> respondToInvite(String inviteId, String status) async {
     await ApiService.respondToInvite(inviteId, status);
+    // Remove it immediately rather than waiting on the fetchInvites() refresh
+    // below — if that refresh call is slow or fails (network hiccup), the
+    // invite would otherwise keep showing with working Accept/Decline
+    // buttons, letting it be responded to again even though the backend
+    // already processed it.
+    _incoming = _incoming.where((invite) => _inviteId(invite) != inviteId).toList();
+    notifyListeners();
     await fetchInvites();
   }
 }

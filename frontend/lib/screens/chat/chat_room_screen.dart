@@ -80,6 +80,9 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
   // the currently-visible screen (an earlier, already-disposed listener can
   // throw and prevent later listeners for the same event from running).
   late final void Function(dynamic) _onErrorFeedback;
+  // Same reasoning as _onErrorFeedback: stored so dispose() removes exactly
+  // this listener rather than leaking one on the shared socket singleton.
+  late final void Function(dynamic) _onFriendRemoved;
 
   @override
   void initState() {
@@ -108,6 +111,24 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       );
     };
     SocketService.on(SocketEvents.errorFeedback, _onErrorFeedback);
+
+    // If the other person removes us as a friend while we're sitting in
+    // this very chat, don't leave us looking at a conversation that no
+    // longer exists for us — bounce back to the chat list immediately.
+    _onFriendRemoved = (data) {
+      if (!mounted) return;
+      final removedChatId = data['chatId']?.toString();
+      if (removedChatId != widget.chatId) return;
+      // Capture the messenger before popping — once this route is gone,
+      // `context` here is no longer safely usable to look one up.
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      HomeScreen.homeKey.currentState?.switchToChatsTab();
+      messenger.showSnackBar(
+        SnackBar(content: Text('${widget.contactName} removed you as a friend.')),
+      );
+    };
+    SocketService.on(SocketEvents.friendRemoved, _onFriendRemoved);
 
     // Track which messages are actually on screen so we can show a "more
     // messages" pill whenever there's an unread message hidden below the fold.
@@ -320,6 +341,11 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       ),
     );
 
+    // The dialog's TextField held focus while open; without explicitly
+    // unfocusing, focus bounces back to the chat's message input field once
+    // the dialog closes, popping the keyboard back up.
+    FocusManager.instance.primaryFocus?.unfocus();
+
     if (newContent == null || newContent.isEmpty || newContent == currentContent) return;
 
     _messageProvider.editMessage(messageId, newContent);
@@ -343,6 +369,10 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
         ],
       ),
     );
+
+    // Same as _editMessage: prevent focus from bouncing back to the message
+    // input field and reopening the keyboard once this dialog closes.
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (confirmed != true) return;
 
@@ -385,7 +415,15 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       if (choice == 'image') {
         pickedFile = await picker.pickImage(source: source);
       } else {
-        pickedFile = await picker.pickVideo(source: source);
+        // Cap recording length in the native camera UI. Video bitrate varies
+        // a lot by device (1080p vs 4K, fps, codec), so this doesn't
+        // guarantee staying under the 20MB limit checked below — but it
+        // gives a predictable, consistent limit instead of letting someone
+        // film a long clip only to have it rejected afterwards.
+        pickedFile = await picker.pickVideo(
+          source: source,
+          maxDuration: const Duration(seconds: 60),
+        );
       }
     }
 
@@ -550,6 +588,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     }
     _messageProvider.removeListener(_onMessagesChanged);
     SocketService.off(SocketEvents.errorFeedback, _onErrorFeedback);
+    SocketService.off(SocketEvents.friendRemoved, _onFriendRemoved);
     _itemPositionsListener.itemPositions.removeListener(_handleItemPositionsChanged);
     _messageController.dispose();
     super.dispose();

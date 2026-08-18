@@ -114,16 +114,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
               return Dismissible(
                 key: Key(chatId),
                 background: Container(
-                  color: Colors.amber.shade700,
+                  color: AppColors.warning,
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Icon(isArchived ? Icons.unarchive : Icons.archive, color: Colors.white),
+                  child: Icon(isArchived ? Icons.unarchive : Icons.archive, color: AppColors.onPrimary),
                 ),
                 secondaryBackground: Container(
-                  color: Colors.red,
+                  color: AppColors.error,
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
+                  child: Icon(Icons.delete, color: AppColors.onPrimary),
                 ),
                 confirmDismiss: (direction) async {
                   final messenger = ScaffoldMessenger.of(context);
@@ -188,11 +188,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           child: Text(
                             chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: AppColors.onPrimary, fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                      const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
                     ],
                   ),
                   onTap: () async {
