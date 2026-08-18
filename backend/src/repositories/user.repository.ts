@@ -1,12 +1,26 @@
 import pool from '../config/database';
 import { User, Profile } from '../models/user.model';
-import { encryptText, decryptText } from '../utils/encryption.util';
+import { encryptText, decryptText, hashForLookup } from '../utils/encryption.util';
+
+// email is stored encrypted (see email_hash below), so decrypt it before
+// handing a row back to callers that expect plaintext (login, registration
+// duplicate checks, sending emails, JWT payloads, etc.) — mirrors how
+// avatar_url/about_me are already decrypted before being returned.
+function withDecryptedEmail<T extends { email?: string | null }>(row: T): T {
+    if (row?.email) row.email = decryptText(row.email);
+    return row;
+}
 
 export class UserRepository {
+    // email is matched via its deterministic HMAC hash (email_hash) rather
+    // than the (now encrypted, non-deterministic) email column itself — AES
+    // with a random IV produces different ciphertext every time, so it can't
+    // be matched with SQL `=`. Callers must pass an already-trimmed/lowercased
+    // email so the hash is computed consistently.
     static async findByEmailOrUsername(email: string, username: string): Promise<User | null> {
-        const query = 'SELECT * FROM users WHERE email = $1 OR username = $2';
-        const result = await pool.query(query, [email, username]);
-        return result.rows[0] || null;
+        const query = 'SELECT * FROM users WHERE email_hash = $1 OR username = $2';
+        const result = await pool.query(query, [hashForLookup(email), username]);
+        return result.rows[0] ? withDecryptedEmail(result.rows[0]) : null;
     }
 
     // Same lookup as above but excludes the given user, so a profile update can
@@ -17,9 +31,9 @@ export class UserRepository {
         username: string,
         excludeUserId: string,
     ): Promise<User | null> {
-        const query = 'SELECT * FROM users WHERE (email = $1 OR username = $2) AND id != $3';
-        const result = await pool.query(query, [email, username, excludeUserId]);
-        return result.rows[0] || null;
+        const query = 'SELECT * FROM users WHERE (email_hash = $1 OR username = $2) AND id != $3';
+        const result = await pool.query(query, [hashForLookup(email), username, excludeUserId]);
+        return result.rows[0] ? withDecryptedEmail(result.rows[0]) : null;
     }
 
     static async createUser(
@@ -34,18 +48,19 @@ export class UserRepository {
             await client.query('BEGIN');
             const userQuery = `
                 INSERT INTO users (
-                    email, username, password_hash,
+                    email, email_hash, username, password_hash,
                     verification_token, verification_token_expires
                 )
-                VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+                VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
             const userResult = await client.query(userQuery, [
-                email,
+                encryptText(email),
+                hashForLookup(email),
                 username,
                 passwordHash,
                 verificationToken,
                 verificationTokenExpires,
             ]);
-            const user: User = userResult.rows[0];
+            const user: User = withDecryptedEmail(userResult.rows[0]);
 
             // Create blank profile for the new user
             await client.query('INSERT INTO profiles (user_id) VALUES ($1)', [user.id]);
@@ -69,7 +84,7 @@ export class UserRepository {
         const result = await pool.query(query, [userId]);
         if (!result.rows[0]) return null;
 
-        const profile: Profile = result.rows[0];
+        const profile: Profile = withDecryptedEmail(result.rows[0]);
         // Decrypt sensitive profile data fetched from DB
         if (profile.avatar_url) {
             profile.avatar_url = decryptText(profile.avatar_url);
@@ -88,6 +103,8 @@ export class UserRepository {
         // Encrypt avatarUrl/aboutMe before writing to DB as per data encryption requirements
         const encryptedAvatarUrl = avatarUrl ? encryptText(avatarUrl) : null;
         const encryptedAboutMe = aboutMe ? encryptText(aboutMe) : null;
+        const encryptedEmail = email ? encryptText(email) : null;
+        const emailHash = email ? hashForLookup(email) : null;
 
         const client = await pool.connect();
         try {
@@ -96,9 +113,10 @@ export class UserRepository {
             await client.query(
                 `UPDATE users
                  SET username = COALESCE($2, username),
-                     email = COALESCE($3, email)
+                     email = COALESCE($3, email),
+                     email_hash = COALESCE($4, email_hash)
                  WHERE id = $1`,
-                [userId, username ?? null, email ?? null],
+                [userId, username ?? null, encryptedEmail, emailHash],
             );
 
             await client.query(
@@ -119,7 +137,7 @@ export class UserRepository {
 
             await client.query('COMMIT');
 
-            const profile: Profile = result.rows[0];
+            const profile: Profile = withDecryptedEmail(result.rows[0]);
             if (profile.avatar_url) profile.avatar_url = decryptText(profile.avatar_url);
             if (profile.about_me) profile.about_me = decryptText(profile.about_me);
             return profile;
@@ -161,12 +179,20 @@ export class UserRepository {
                 END AS relationship_status
             FROM users u
             LEFT JOIN profiles p ON u.id = p.user_id
-            WHERE (u.email ILIKE $1 OR u.username ILIKE $1) AND u.id != $2
+            WHERE (u.username ILIKE $1 OR u.email_hash = $3) AND u.id != $2
             ORDER BY u.username
             LIMIT 10`;
-        const result = await pool.query(query, [`%${searchTerm}%`, currentUserId]);
+        // Username supports partial/substring matching (ILIKE) since it's a
+        // public, searchable handle. Email is encrypted at rest, so it can only
+        // be matched exactly via its deterministic hash — the search term must
+        // be the complete email address for an email match to hit.
+        const result = await pool.query(query, [
+            `%${searchTerm}%`,
+            currentUserId,
+            hashForLookup(searchTerm.trim().toLowerCase()),
+        ]);
         return result.rows.map((row: any) => ({
-            ...row,
+            ...withDecryptedEmail(row),
             avatar_url: row.avatar_url ? decryptText(row.avatar_url) : row.avatar_url,
         }));
     }

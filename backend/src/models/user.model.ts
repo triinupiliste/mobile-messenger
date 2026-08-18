@@ -1,6 +1,7 @@
 export interface User {
     id: string;
     email: string;
+    email_hash?: string;
     username: string;
     password_hash: string;
     is_verified: boolean;

@@ -4,7 +4,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. Users Table (Handles Registration, Auth, & Unique Constraints)
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email TEXT NOT NULL, -- Stored as encrypted text payload (AES-256-CBC); see email_hash for lookups
+    email_hash VARCHAR(64) NOT NULL, -- Deterministic HMAC-SHA256 of the normalized email, used for exact-match login/registration lookups since `email` itself is ciphertext. Unique index created by ensureEmailEncryption() in migrate.ts (shared code path with legacy databases).
     username VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE,
@@ -17,7 +18,6 @@ CREATE TABLE users (
 );
 
 -- Indexes for fast search and unique lookups
-CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_verification_token ON users(verification_token)
     WHERE verification_token IS NOT NULL;

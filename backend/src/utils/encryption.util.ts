@@ -49,3 +49,19 @@ export function decryptBuffer(buffer: Buffer): Buffer {
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
     return Buffer.concat([decipher.update(encrypted), decipher.final()]);
 }
+
+// AES-256-CBC (used above) picks a random IV per call, so the same input
+// never produces the same ciphertext twice — that's what makes it secure,
+// but it also means encrypted columns can't be searched/matched with plain
+// SQL (`=`/ILIKE) directly. For fields that must stay encrypted at rest but
+// also need an exact-match lookup (e.g. finding a user by email for login,
+// or enforcing "email already in use"), we additionally store a deterministic
+// HMAC-SHA256 of the normalized value in a separate `*_hash` column. HMAC is
+// one-way (can't be reversed to recover the original value) and, unlike a
+// plain hash, requires ENCRYPTION_KEY to compute — so it can't be brute-forced
+// offline from the database alone the way an unsalted SHA-256 lookup table
+// could be. Callers must normalize (trim + lowercase) the value themselves
+// before calling this, so the same email always hashes identically.
+export function hashForLookup(normalizedValue: string): string {
+    return crypto.createHmac('sha256', ENCRYPTION_KEY).update(normalizedValue).digest('hex');
+}

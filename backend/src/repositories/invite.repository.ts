@@ -41,6 +41,7 @@ export class InviteRepository {
             ...row,
             sender: {
                 ...row.sender,
+                email: row.sender?.email ? decryptText(row.sender.email) : row.sender?.email,
                 avatar_url: row.sender?.avatar_url ? decryptText(row.sender.avatar_url) : row.sender?.avatar_url,
             },
         }));
@@ -69,6 +70,7 @@ export class InviteRepository {
             ...row,
             sender: {
                 ...row.sender,
+                email: row.sender?.email ? decryptText(row.sender.email) : row.sender?.email,
                 avatar_url: row.sender?.avatar_url ? decryptText(row.sender.avatar_url) : row.sender?.avatar_url,
             },
         };
@@ -93,6 +95,7 @@ export class InviteRepository {
             ...row,
             recipient: {
                 ...row.recipient,
+                email: row.recipient?.email ? decryptText(row.recipient.email) : row.recipient?.email,
                 avatar_url: row.recipient?.avatar_url ? decryptText(row.recipient.avatar_url) : row.recipient?.avatar_url,
             },
         }));
