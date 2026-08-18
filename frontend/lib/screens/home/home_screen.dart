@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/invite_provider.dart';
-import '../../theme/app_colors.dart';
 import '../chat/chat_list_screen.dart';
 import '../invites/invites_screen.dart';
 import '../search/search_screen.dart';
@@ -38,9 +37,21 @@ class HomeScreenState extends State<HomeScreen> {
     context.read<ChatProvider>().fetchChats();
   }
 
-  late final List<Widget> _screens = [
-    const ChatListScreen(),
-    const InvitesScreen(),
+  // Note: this is a getter (not a `late final` field computed once) so it
+  // constructs fresh widget instances on every build. IndexedStack's
+  // Element.updateChild skips rebuilding a child entirely if the exact same
+  // widget instance is passed again — with a fixed field (and `const`
+  // constructors, which Dart canonicalizes to one shared instance regardless
+  // of how many times they're constructed), that meant these tabs (Profile's
+  // avatar/logout button, Search's icon, etc.) never picked up theme changes
+  // made via RestartWidget while sitting in the background, only updating
+  // once something inside them called setState directly. `const` is
+  // deliberately dropped below for the same reason. None of these widgets
+  // have (or need) Keys, so recreating them each build still preserves each
+  // tab's State via the standard same-type/same-slot element matching.
+  List<Widget> get _screens => [
+    ChatListScreen(),
+    InvitesScreen(),
     SearchScreen(onInviteSent: () => context.read<InviteProvider>().fetchInvites()),
     ProfileScreen(key: _profileKey),
   ];
@@ -55,67 +66,90 @@ class HomeScreenState extends State<HomeScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) async {
-          if (index == _currentIndex) return;
-
-          // Capture providers *before* any async gaps to avoid context warnings
-          final chatProvider = context.read<ChatProvider>();
-          final inviteProvider = context.read<InviteProvider>();
-
-          if (_currentIndex == _profileTabIndex) {
-            final canLeave =
-                await _profileKey.currentState?.confirmDiscardChangesIfNeeded() ?? true;
-            if (!canLeave) return;
-          }
-
-          if (!mounted) return;
-
-          setState(() {
-            _currentIndex = index;
-          });
-
-          if (index == 0) {
-            await chatProvider.fetchChats();
-          } else if (index == _invitesTabIndex) {
-            await inviteProvider.fetchInvites();
-            
-            if (!mounted) return;
-            inviteProvider.markIncomingSeen();
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
-        backgroundColor: Colors.white,
-        elevation: 8,
-        items: [
-          BottomNavigationBarItem(
-            icon: Badge(
-              isLabelVisible: totalUnreadMessages > 0,
-              label: Text(totalUnreadMessages > 99 ? '99+' : '$totalUnreadMessages'),
-              child: const Icon(Icons.chat_bubble_rounded),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
             ),
-            label: 'Chats',
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) async {
+              if (index == _currentIndex) return;
+
+              // Capture providers *before* any async gaps to avoid context warnings
+              final chatProvider = context.read<ChatProvider>();
+              final inviteProvider = context.read<InviteProvider>();
+
+              if (_currentIndex == _profileTabIndex) {
+                final canLeave =
+                    await _profileKey.currentState?.confirmDiscardChangesIfNeeded() ?? true;
+                if (!canLeave) return;
+              }
+
+              if (!mounted) return;
+
+              setState(() {
+                _currentIndex = index;
+              });
+
+              if (index == 0) {
+                await chatProvider.fetchChats();
+              } else if (index == _invitesTabIndex) {
+                await inviteProvider.fetchInvites();
+
+                if (!mounted) return;
+                inviteProvider.markIncomingSeen();
+              }
+            },
+            backgroundColor: Colors.white,
+            elevation: 0,
+            destinations: [
+              NavigationDestination(
+                icon: Badge(
+                  isLabelVisible: totalUnreadMessages > 0,
+                  label: Text(totalUnreadMessages > 99 ? '99+' : '$totalUnreadMessages'),
+                  child: const Icon(Icons.chat_bubble_outline_rounded),
+                ),
+                selectedIcon: Badge(
+                  isLabelVisible: totalUnreadMessages > 0,
+                  label: Text(totalUnreadMessages > 99 ? '99+' : '$totalUnreadMessages'),
+                  child: const Icon(Icons.chat_bubble_rounded),
+                ),
+                label: 'Chats',
+              ),
+              NavigationDestination(
+                icon: Badge(
+                  isLabelVisible: unseenInvites > 0,
+                  label: Text(unseenInvites > 99 ? '99+' : '$unseenInvites'),
+                  child: const Icon(Icons.mail_outline_rounded),
+                ),
+                selectedIcon: Badge(
+                  isLabelVisible: unseenInvites > 0,
+                  label: Text(unseenInvites > 99 ? '99+' : '$unseenInvites'),
+                  child: const Icon(Icons.mail_rounded),
+                ),
+                label: 'Invites',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.search_rounded),
+                label: 'Search',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: 'Profile',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Badge(
-              isLabelVisible: unseenInvites > 0,
-              label: Text(unseenInvites > 99 ? '99+' : '$unseenInvites'),
-              child: const Icon(Icons.mail_outline_rounded),
-            ),
-            label: 'Invites',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.search_rounded),
-            label: 'Search',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-        ],
+        ),
       ),
     );
   }

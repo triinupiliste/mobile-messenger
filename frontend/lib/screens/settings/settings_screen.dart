@@ -67,23 +67,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
           for (final option in _themeOptions)
             Builder(builder: (context) {
               final swatch = AppColors.primaryFor(option.theme);
-              return Card(
+              final selected = _selectedTheme == option.theme;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: _selectedTheme == option.theme ? swatch : Colors.transparent,
-                    width: 2,
-                  ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: selected ? swatch : const Color(0xFFEDEDF2), width: selected ? 2 : 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (selected ? swatch : Colors.black).withValues(alpha: selected ? 0.18 : 0.04),
+                      blurRadius: selected ? 14 : 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: ListTile(
-                  onTap: () => _selectTheme(option.theme),
-                  leading: CircleAvatar(backgroundColor: swatch),
-                  title: Text(option.label),
-                  subtitle: Text(option.description),
-                  trailing: _selectedTheme == option.theme
-                      ? Icon(Icons.check_circle, color: swatch)
-                      : const Icon(Icons.radio_button_unchecked, color: AppColors.textSecondary),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(18),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => _selectTheme(option.theme),
+                    child: ListTile(
+                      leading: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [swatch, Color.lerp(swatch, Colors.black, 0.18)!],
+                          ),
+                          boxShadow: [
+                            BoxShadow(color: swatch.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 2)),
+                          ],
+                        ),
+                      ),
+                      title: Text(option.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(option.description),
+                      trailing: selected
+                          ? Icon(Icons.check_circle, color: swatch)
+                          : const Icon(Icons.radio_button_unchecked, color: AppColors.textSecondary),
+                    ),
+                  ),
                 ),
               );
             }),

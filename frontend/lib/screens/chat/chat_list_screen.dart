@@ -89,6 +89,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: filteredChats.length,
             itemBuilder: (context, index) {
               final chat = filteredChats[index];
@@ -114,15 +115,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
               return Dismissible(
                 key: Key(chatId),
                 background: Container(
-                  color: AppColors.warning,
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
                   alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
                   child: Icon(isArchived ? Icons.unarchive : Icons.archive, color: AppColors.onPrimary),
                 ),
                 secondaryBackground: Container(
-                  color: AppColors.error,
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
                   alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
                   child: Icon(Icons.delete, color: AppColors.onPrimary),
                 ),
                 confirmDismiss: (direction) async {
@@ -159,59 +168,88 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   Future.delayed(const Duration(seconds: 5), controller.close);
                   return true;
                 },
-                child: ListTile(
-                  leading: UserAvatar(
-                    avatarUrl: chat.contactAvatar,
-                    displayName: contactName,
-                  ),
-                  title: Text(contactName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                  subtitle: Text(
-                    previewText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: hasUnread ? AppColors.textPrimary : AppColors.textSecondary,
-                      fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (hasUnread)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          constraints: const BoxConstraints(minWidth: 22),
-                          child: Text(
-                            chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.onPrimary, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFEDEDF2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
                     ],
                   ),
-                  onTap: () async {
-                    final chatProv = context.read<ChatProvider>();
-
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatRoomScreen(
-                          chatId: chatId,
-                          contactId: chat.contactId,
-                          contactName: contactName,
-                        ),
+                  child: ListTile(
+                    leading: UserAvatar(
+                      avatarUrl: chat.contactAvatar,
+                      displayName: contactName,
+                    ),
+                    title: Text(contactName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    subtitle: Text(
+                      previewText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: hasUnread ? AppColors.textPrimary : AppColors.textSecondary,
+                        fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
                       ),
-                    );
-                    
-                    if (!mounted) return;
-                    chatProv.fetchChats();
-                  },
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasUnread)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.primary,
+                                  Color.lerp(AppColors.primary, Colors.black, 0.18)!,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            constraints: const BoxConstraints(minWidth: 22),
+                            child: Text(
+                              chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: AppColors.onPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+                      ],
+                    ),
+                    onTap: () async {
+                      final chatProv = context.read<ChatProvider>();
+
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatRoomScreen(
+                            chatId: chatId,
+                            contactId: chat.contactId,
+                            contactName: contactName,
+                          ),
+                        ),
+                      );
+
+                      if (!mounted) return;
+                      chatProv.fetchChats();
+                    },
+                  ),
                 ),
               );
             },

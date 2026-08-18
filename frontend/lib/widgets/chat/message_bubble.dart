@@ -247,18 +247,29 @@ class _MessageBubbleState extends State<MessageBubble> {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                 decoration: BoxDecoration(
-                  color: isMe ? AppColors.primary : Colors.white,
+                  gradient: isMe
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.primary,
+                            Color.lerp(AppColors.primary, Colors.black, 0.18)!,
+                          ],
+                        )
+                      : null,
+                  color: isMe ? null : Colors.white,
+                  border: isMe ? null : Border.all(color: const Color(0xFFEDEDF2)),
                   borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16),
-                    topRight: const Radius.circular(16),
-                    bottomLeft: Radius.circular(isMe ? 16 : 4),
-                    bottomRight: Radius.circular(isMe ? 4 : 16),
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft: Radius.circular(isMe ? 18 : 4),
+                    bottomRight: Radius.circular(isMe ? 4 : 18),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                      color: (isMe ? AppColors.primary : Colors.black).withValues(alpha: isMe ? 0.18 : 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
@@ -268,10 +279,10 @@ class _MessageBubbleState extends State<MessageBubble> {
                     if (widget.replyTo != null)
                       Container(
                         margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                         decoration: BoxDecoration(
                           color: (isMe ? Colors.white : AppColors.primary).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border(
                             left: BorderSide(color: isMe ? Colors.white70 : AppColors.primary, width: 3),
                           ),

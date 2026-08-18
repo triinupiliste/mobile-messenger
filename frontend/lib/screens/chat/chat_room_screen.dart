@@ -773,15 +773,31 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
 
           if (_replyingTo != null)
             Container(
+              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFEDEDF2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
-                  Container(width: 3, height: 32, color: AppColors.primary),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 3,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -809,52 +825,99 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
 
           // Message Input Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            color: Colors.white,
-            child: Row(
-              children: [
-                if (_isUploadingMedia)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, -2)),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F2F7),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Row(
+                        children: [
+                          if (_isUploadingMedia)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                              ),
+                            )
+                          else ...[
+                            IconButton(
+                              icon: Icon(Icons.photo_outlined, color: AppColors.primary),
+                              onPressed: () => _pickAndSendMedia(ImageSource.gallery),
+                              tooltip: 'Send from Gallery',
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.photo_camera_outlined, color: AppColors.primary),
+                              onPressed: () => _pickAndSendMedia(ImageSource.camera),
+                              tooltip: 'Take Photo or Video',
+                            ),
+                            IconButton(
+                              icon: Icon(_isRecording ? Icons.stop_circle : Icons.mic_none, color: _isRecording ? Colors.red : AppColors.primary),
+                              onPressed: _toggleRecording,
+                              tooltip: _isRecording ? 'Stop Recording' : 'Record Audio',
+                            ),
+                          ],
+                          Expanded(
+                            child: TextField(
+                              controller: _messageController,
+                              onChanged: _handleTyping,
+                              minLines: 1,
+                              maxLines: 5,
+                              decoration: const InputDecoration(
+                                hintText: 'Type a message...',
+                                border: InputBorder.none,
+                                filled: false,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-                else ...[
-                  IconButton(
-                    icon: Icon(Icons.photo, color: AppColors.primary),
-                    onPressed: () => _pickAndSendMedia(ImageSource.gallery),
-                    tooltip: 'Send from Gallery',
                   ),
-                  IconButton(
-                    icon: Icon(Icons.photo_camera, color: AppColors.primary),
-                    onPressed: () => _pickAndSendMedia(ImageSource.camera),
-                    tooltip: 'Take Photo or Video',
-                  ),
-                  IconButton(
-                    icon: Icon(_isRecording ? Icons.stop : Icons.mic, color: _isRecording ? Colors.red : AppColors.primary),
-                    onPressed: _toggleRecording,
-                    tooltip: _isRecording ? 'Stop Recording' : 'Record Audio',
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.primary,
+                          Color.lerp(AppColors.primary, Colors.black, 0.18)!,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.send_rounded, color: Colors.white),
+                      onPressed: () => _sendMessage(),
+                    ),
                   ),
                 ],
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    onChanged: _handleTyping,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: InputBorder.none,
-                      filled: false,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.send, color: AppColors.primary),
-                  onPressed: () => _sendMessage(),
-                ),
-              ],
+              ),
             ),
           ),
         ],
