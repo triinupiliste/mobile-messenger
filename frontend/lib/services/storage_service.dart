@@ -12,24 +12,16 @@ class StorageService {
   static String? _cachedToken;
   static String? get cachedToken => _cachedToken;
 
-  // Save the authentication token
   static Future<void> setToken(String token) async {
     _cachedToken = token;
     await _secureStorage.write(key: _tokenKey, value: token);
   }
 
-  // Alternative alias just in case your code calls saveToken
-  static Future<void> saveToken(String token) async {
-    await setToken(token);
-  }
-
-  // Retrieve the stored authentication token
   static Future<String?> getToken() async {
     _cachedToken = await _secureStorage.read(key: _tokenKey);
     return _cachedToken;
   }
 
-  // Clear the token on logout
   static Future<void> clearToken() async {
     _cachedToken = null;
     await _secureStorage.delete(key: _tokenKey);

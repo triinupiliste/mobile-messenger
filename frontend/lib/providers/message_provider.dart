@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/socket_service.dart';
+import '../utils/json_utils.dart';
 
 // Owns the message list + real-time socket sync for a single, specific chat
 // room. Deliberately scoped per chat room (created fresh via
@@ -192,7 +193,7 @@ class MessageProvider with ChangeNotifier {
   Future<void> _loadHistory() async {
     try {
       final profile = await ApiService.getProfile();
-      _currentUserId = profile['id']?.toString() ?? profile['user_id']?.toString();
+      _currentUserId = extractUserId(profile);
 
       final history = await ApiService.getMessages(chatId);
       _messages

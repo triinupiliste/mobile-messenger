@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/socket_events.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../utils/json_utils.dart';
 
 class InviteProvider with ChangeNotifier {
   List<dynamic> _incoming = [];
@@ -78,7 +79,7 @@ class InviteProvider with ChangeNotifier {
       // username/avatar — patch it into the incoming/outgoing lists so it
       // updates live instead of only after the next fetchInvites().
       SocketService.socket.on(SocketEvents.profileUpdated, (data) {
-        final userId = data['userId']?.toString() ?? data['user_id']?.toString();
+        final userId = extractUserId(data, 'userId');
         if (userId == null) return;
         var changed = false;
 

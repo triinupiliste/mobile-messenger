@@ -7,6 +7,7 @@ import '../../constants/socket_events.dart';
 import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/json_utils.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../chat/chat_room_screen.dart';
 
@@ -40,7 +41,7 @@ class _SearchScreenState extends State<SearchScreen> {
   // patch it in live instead of only showing it fresh on the next search.
   void _handleProfileUpdated(dynamic data) {
     if (!mounted) return;
-    final userId = data['userId']?.toString() ?? data['user_id']?.toString();
+    final userId = extractUserId(data as Map<String, dynamic>, 'userId');
     if (userId == null) return;
     final index = _searchResults.indexWhere((u) => u.id == userId);
     if (index == -1) return;
@@ -360,11 +361,11 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFEDEDF2)),
+                  borderSide: const BorderSide(color: AppColors.cardBorder),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFEDEDF2)),
+                  borderSide: const BorderSide(color: AppColors.cardBorder),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),

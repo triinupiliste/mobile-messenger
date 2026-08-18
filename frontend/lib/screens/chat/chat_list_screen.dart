@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/json_utils.dart';
 import '../../widgets/common/user_avatar.dart';
 import 'chat_room_screen.dart';
 
@@ -31,7 +32,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       final profile = await ApiService.getProfile();
       if (!mounted) return;
       setState(() {
-        _currentUserId = profile['id']?.toString() ?? profile['user_id']?.toString();
+        _currentUserId = extractUserId(profile);
       });
     } catch (_) {
       // Ignore; falls back to showing messages without the 'You:' prefix.
@@ -173,7 +174,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFEDEDF2)),
+                    border: Border.all(color: AppColors.cardBorder),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -209,7 +210,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 end: Alignment.bottomRight,
                                 colors: [
                                   AppColors.primary,
-                                  Color.lerp(AppColors.primary, Colors.black, 0.18)!,
+                                  AppColors.darken(AppColors.primary),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(12),

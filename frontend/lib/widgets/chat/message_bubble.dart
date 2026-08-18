@@ -253,12 +253,12 @@ class _MessageBubbleState extends State<MessageBubble> {
                           end: Alignment.bottomRight,
                           colors: [
                             AppColors.primary,
-                            Color.lerp(AppColors.primary, Colors.black, 0.18)!,
+                            AppColors.darken(AppColors.primary),
                           ],
                         )
                       : null,
                   color: isMe ? null : Colors.white,
-                  border: isMe ? null : Border.all(color: const Color(0xFFEDEDF2)),
+                  border: isMe ? null : Border.all(color: AppColors.cardBorder),
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(18),
                     topRight: const Radius.circular(18),
@@ -391,6 +391,7 @@ class _AudioBubbleState extends State<_AudioBubble> {
   @override
   void dispose() {
     _audioService.stopAudio();
+    _audioService.dispose();
     super.dispose();
   }
 

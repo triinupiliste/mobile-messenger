@@ -84,7 +84,7 @@ export class ChatController {
     static async getChatMessages(req: Request, res: Response): Promise<string | void> {
         try {
             const userId = (req as any).user.userId;
-            const chatId = req.params.chatId as string; // <-- Explicitly cast as string
+            const chatId = req.params.chatId as string;
             const messages = await MessageRepository.getMessagesForChat(chatId, userId);
             res.status(200).json(messages);
         } catch (error) {

@@ -74,7 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: selected ? swatch : const Color(0xFFEDEDF2), width: selected ? 2 : 1),
+                  border: Border.all(color: selected ? swatch : AppColors.cardBorder, width: selected ? 2 : 1),
                   boxShadow: [
                     BoxShadow(
                       color: (selected ? swatch : Colors.black).withValues(alpha: selected ? 0.18 : 0.04),
@@ -98,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [swatch, Color.lerp(swatch, Colors.black, 0.18)!],
+                            colors: [swatch, AppColors.darken(swatch)],
                           ),
                           boxShadow: [
                             BoxShadow(color: swatch.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 2)),

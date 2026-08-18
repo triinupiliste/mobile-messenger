@@ -34,21 +34,21 @@ try {
             credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
         });
         pushEnabled = true;
-        console.log('✅ Firebase Admin initialized from FIREBASE_SERVICE_ACCOUNT_BASE64 — push notifications enabled.');
+        console.log('Firebase Admin initialized from FIREBASE_SERVICE_ACCOUNT_BASE64 — push notifications enabled.');
     } else if (credentialsPath && fs.existsSync(credentialsPath)) {
         admin.initializeApp({
             credential: admin.credential.applicationDefault(),
         });
         pushEnabled = true;
-        console.log('✅ Firebase Admin initialized — push notifications enabled.');
+        console.log('Firebase Admin initialized — push notifications enabled.');
     } else {
         console.warn(
-            '⚠️  No Firebase credentials found (checked FIREBASE_SERVICE_ACCOUNT_BASE64 and ' +
+            'No Firebase credentials found (checked FIREBASE_SERVICE_ACCOUNT_BASE64 and ' +
             'GOOGLE_APPLICATION_CREDENTIALS) — push notifications are disabled until one is configured.'
         );
     }
 } catch (error) {
-    console.error('⚠️  Failed to initialize Firebase Admin — push notifications are disabled.', error);
+    console.error('Failed to initialize Firebase Admin — push notifications are disabled.', error);
 }
 
 export interface PushPayload {

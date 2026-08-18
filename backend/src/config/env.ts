@@ -20,3 +20,20 @@ function requireEnv(name: string): string {
 
 export const JWT_SECRET = requireEnv('JWT_SECRET');
 export const ENCRYPTION_KEY = requireEnv('ENCRYPTION_KEY');
+
+// Origins allowed to call the REST API and connect over Socket.IO. The
+// Flutter app itself doesn't send an `Origin` header (that's a
+// browser-only concept), so this only matters for browser-based callers —
+// it stops an arbitrary web page from making authenticated requests/socket
+// connections against this API on a victim's behalf. Defaults cover the
+// hosted backend plus local development; override with a comma-separated
+// list via the ALLOWED_ORIGINS env var if you deploy somewhere else.
+const DEFAULT_ALLOWED_ORIGINS = [
+    'https://mobile-messenger-production.up.railway.app',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+];
+
+export const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+    : DEFAULT_ALLOWED_ORIGINS;

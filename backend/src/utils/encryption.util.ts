@@ -65,3 +65,21 @@ export function decryptBuffer(buffer: Buffer): Buffer {
 export function hashForLookup(normalizedValue: string): string {
     return crypto.createHmac('sha256', ENCRYPTION_KEY).update(normalizedValue).digest('hex');
 }
+
+// Decrypts one or more fields on a row/object in place, skipping any that are
+// null/undefined/empty. Centralizes the "field ? decryptText(field) : field"
+// pattern that used to be copy-pasted at every call site across the
+// repositories (profiles, invites, chat list previews, etc). Mutates and
+// returns the same object so it can be used inline (e.g. in a `.map(...)`).
+export function decryptFields<T extends Record<string, any>>(
+    row: T | null | undefined,
+    fields: (keyof T)[],
+): T | null | undefined {
+    if (!row) return row;
+    for (const field of fields) {
+        if (row[field]) {
+            row[field] = decryptText(row[field] as string) as T[keyof T];
+        }
+    }
+    return row;
+}

@@ -609,6 +609,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     SocketService.off(SocketEvents.friendRemoved, _onFriendRemoved);
     _itemPositionsListener.itemPositions.removeListener(_handleItemPositionsChanged);
     _messageController.dispose();
+    _audioService.dispose();
     super.dispose();
   }
 
@@ -778,10 +779,10 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFEDEDF2)),
+                border: Border.all(color: AppColors.cardBorder),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: AppColors.softShadow,
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -829,7 +830,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
             decoration: const BoxDecoration(
               color: Colors.white,
               boxShadow: [
-                BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, -2)),
+                BoxShadow(color: AppColors.floatingBarShadow, blurRadius: 12, offset: Offset(0, -2)),
               ],
             ),
             child: SafeArea(
@@ -900,7 +901,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                         end: Alignment.bottomRight,
                         colors: [
                           AppColors.primary,
-                          Color.lerp(AppColors.primary, Colors.black, 0.18)!,
+                          AppColors.darken(AppColors.primary),
                         ],
                       ),
                       boxShadow: [

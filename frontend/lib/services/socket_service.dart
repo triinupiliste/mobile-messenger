@@ -45,17 +45,17 @@ class SocketService {
     final connected = Completer<void>();
 
     _socket!.onConnect((_) {
-      debugPrint('🔌 Connected to Socket.io server');
+      debugPrint('Connected to Socket.io server');
       if (!connected.isCompleted) connected.complete();
     });
 
     _socket!.onConnectError((error) {
-      debugPrint('🔌 Socket connect error: $error');
+      debugPrint('Socket connect error: $error');
       if (!connected.isCompleted) connected.complete();
     });
 
     _socket!.onDisconnect((_) {
-      debugPrint('🔌 Disconnected from Socket.io server');
+      debugPrint('Disconnected from Socket.io server');
     });
 
     _socket!.connect();
@@ -104,7 +104,7 @@ class SocketService {
         _socket!.disconnect();
         _socket = null;
         _connectedToken = null;
-        debugPrint('🔌 Socket successfully disconnected and cleared.');
+        debugPrint('Socket successfully disconnected and cleared.');
       }
     } catch (e) {
       debugPrint('Error disconnecting socket: $e');

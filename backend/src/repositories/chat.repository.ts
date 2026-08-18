@@ -1,6 +1,6 @@
 import pool from '../config/database';
 import { ChatListItem } from '../models/chat.model';
-import { decryptText } from '../utils/encryption.util';
+import { decryptFields } from '../utils/encryption.util';
 
 export class ChatRepository {
     static async createChatBetweenUsers(user1Id: string, user2Id: string): Promise<string> {
@@ -94,11 +94,7 @@ export class ChatRepository {
         const result = await pool.query(query, [userId]);
         
         // Decrypt text previews and avatar URLs for the chat list
-        return result.rows.map((row: any) => ({
-            ...row,
-            contact_avatar: row.contact_avatar ? decryptText(row.contact_avatar) : row.contact_avatar,
-            last_message_content: row.last_message_content ? decryptText(row.last_message_content) : null
-        }));
+        return result.rows.map((row: any) => decryptFields(row, ['contact_avatar', 'last_message_content']));
     }
 
     static async setChatArchivedStatus(chatId: string, userId: string, isArchived: boolean): Promise<void> {

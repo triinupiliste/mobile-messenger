@@ -9,6 +9,7 @@ import { JWT_SECRET } from '../config/env';
 
 const VERIFICATION_TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
+const BCRYPT_SALT_ROUNDS = 10;
 
 function createVerificationToken(): { rawToken: string; tokenHash: string; expiresAt: Date } {
     const rawToken = randomBytes(32).toString('hex');
@@ -86,7 +87,7 @@ export class AuthController {
                 }
             }
 
-            const salt = await bcrypt.genSalt(10);
+            const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
             const passwordHash = await bcrypt.hash(password, salt);
             const verification = createVerificationToken();
 
@@ -301,7 +302,7 @@ export class AuthController {
             }
 
             const tokenHash = createHash('sha256').update(rawToken).digest('hex');
-            const salt = await bcrypt.genSalt(10);
+            const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUNDS);
             const passwordHash = await bcrypt.hash(newPassword, salt);
 
             const user = await UserRepository.resetPassword(tokenHash, passwordHash);

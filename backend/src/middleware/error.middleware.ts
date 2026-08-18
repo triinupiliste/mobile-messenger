@@ -6,7 +6,7 @@ export function errorHandler(
     res: Response,
     next: NextFunction
 ): void {
-    console.error('🔥 Global Error Caught:', err);
+    console.error('Global error caught:', err);
 
     const statusCode = err.statusCode || 500;
 

@@ -5,6 +5,7 @@ import '../models/chat_model.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../services/notification_service.dart';
+import '../utils/json_utils.dart';
 
 class ChatProvider with ChangeNotifier {
   List<ChatModel> _chats = [];
@@ -73,7 +74,7 @@ class ChatProvider with ChangeNotifier {
     if (_currentUserId != null) return;
     try {
       final profile = await ApiService.getProfile();
-      _currentUserId = profile['id']?.toString() ?? profile['user_id']?.toString();
+      _currentUserId = extractUserId(profile);
     } catch (e) {
       debugPrint('Error fetching current user id: $e');
     }
@@ -153,7 +154,7 @@ class ChatProvider with ChangeNotifier {
       // have with them so it updates live everywhere it's shown (chat list,
       // avatars) instead of only after the next fetchChats().
       SocketService.socket.on(SocketEvents.profileUpdated, (data) {
-        final userId = data['userId']?.toString() ?? data['user_id']?.toString();
+        final userId = extractUserId(data, 'userId');
         if (userId == null) return;
         final index = _chats.indexWhere((c) => c.contactId == userId);
         if (index == -1) return;

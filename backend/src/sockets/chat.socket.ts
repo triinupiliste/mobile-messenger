@@ -24,8 +24,8 @@ function buildMessagePreview(content: string | null | undefined, mediaType: stri
 }
 
 export function registerChatHandlers(io: Server) {
-    // 1. Socket Authentication Middleware with explicit 'next' type
-    io.use((socket: Socket, next: (err?: any) => void) => { // <-- Added explicit type here
+    // Reject the connection up front unless it carries a valid JWT.
+    io.use((socket: Socket, next: (err?: any) => void) => {
         const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
         
         if (!token) {
@@ -41,10 +41,9 @@ export function registerChatHandlers(io: Server) {
         });
     });
 
-    // 2. Connection Event Listener
     io.on('connection', (socket: Socket) => {
         const userId = socket.data.user.userId;
-        console.log(`🔌 User connected via WebSocket: ${userId}`);
+        console.log(`User connected via WebSocket: ${userId}`);
 
         // Join a personal room for direct notifications (e.g., invites)
         socket.join(userId);
@@ -157,7 +156,7 @@ export function registerChatHandlers(io: Server) {
 
         // Disconnection handler
         socket.on('disconnect', () => {
-            console.log(`🔌 User disconnected: ${userId}`);
+            console.log(`User disconnected: ${userId}`);
         });
     });
 }

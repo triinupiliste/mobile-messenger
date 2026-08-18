@@ -1,14 +1,13 @@
 import pool from '../config/database';
 import { User, Profile } from '../models/user.model';
-import { encryptText, decryptText, hashForLookup } from '../utils/encryption.util';
+import { encryptText, decryptFields, hashForLookup } from '../utils/encryption.util';
 
 // email is stored encrypted (see email_hash below), so decrypt it before
 // handing a row back to callers that expect plaintext (login, registration
 // duplicate checks, sending emails, JWT payloads, etc.) — mirrors how
 // avatar_url/about_me are already decrypted before being returned.
 function withDecryptedEmail<T extends { email?: string | null }>(row: T): T {
-    if (row?.email) row.email = decryptText(row.email);
-    return row;
+    return decryptFields(row, ['email']) as T;
 }
 
 export class UserRepository {
@@ -84,15 +83,7 @@ export class UserRepository {
         const result = await pool.query(query, [userId]);
         if (!result.rows[0]) return null;
 
-        const profile: Profile = withDecryptedEmail(result.rows[0]);
-        // Decrypt sensitive profile data fetched from DB
-        if (profile.avatar_url) {
-            profile.avatar_url = decryptText(profile.avatar_url);
-        }
-        if (profile.about_me) {
-            profile.about_me = decryptText(profile.about_me);
-        }
-        return profile;
+        return decryptFields(result.rows[0], ['email', 'avatar_url', 'about_me']) as Profile;
     }
 
     static async updateProfile(
@@ -137,10 +128,7 @@ export class UserRepository {
 
             await client.query('COMMIT');
 
-            const profile: Profile = withDecryptedEmail(result.rows[0]);
-            if (profile.avatar_url) profile.avatar_url = decryptText(profile.avatar_url);
-            if (profile.about_me) profile.about_me = decryptText(profile.about_me);
-            return profile;
+            return decryptFields(result.rows[0], ['email', 'avatar_url', 'about_me']) as Profile;
         } catch (error) {
             await client.query('ROLLBACK');
             throw error;
@@ -191,10 +179,7 @@ export class UserRepository {
             currentUserId,
             hashForLookup(searchTerm.trim().toLowerCase()),
         ]);
-        return result.rows.map((row: any) => ({
-            ...withDecryptedEmail(row),
-            avatar_url: row.avatar_url ? decryptText(row.avatar_url) : row.avatar_url,
-        }));
+        return result.rows.map((row: any) => decryptFields(row, ['email', 'avatar_url']));
     }
 
     static async existsById(userId: string): Promise<boolean> {

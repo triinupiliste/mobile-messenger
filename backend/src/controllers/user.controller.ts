@@ -114,9 +114,8 @@ export class UserController {
 
     static async searchUsers(req: Request, res: Response): Promise<void> {
         try {
-            // Safely check both 'userId' and 'id' from the token payload
             const tokenUser = (req as any).user;
-            const currentUserId = tokenUser?.userId ?? tokenUser?.id;
+            const currentUserId = tokenUser?.userId;
             const searchTerm = req.query.q as string;
 
             if (!searchTerm) {

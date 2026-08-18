@@ -39,4 +39,13 @@ class AudioService {
   Future<void> stopAudio() async {
     await _audioPlayer.stop();
   }
+
+  // Releases the underlying recorder/player native resources. Must be called
+  // by whichever widget owns this instance (from its own dispose()) once the
+  // instance is no longer needed, otherwise the native recorder/player
+  // session is leaked for the lifetime of the app.
+  Future<void> dispose() async {
+    await _audioRecorder.dispose();
+    await _audioPlayer.dispose();
+  }
 }

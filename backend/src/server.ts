@@ -15,6 +15,7 @@ import { verifyMediaToken } from './middleware/auth.middleware';
 import { registerChatHandlers } from './sockets/chat.socket';
 import { setIO } from './sockets/socket.instance';
 import { runMigrations } from './config/migrate';
+import { ALLOWED_ORIGINS } from './config/env';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: '*', // Adjust for production security later
+        origin: ALLOWED_ORIGINS,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
     }
 });
@@ -30,7 +31,7 @@ setIO(io);
 
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -70,7 +71,7 @@ runMigrations()
     })
     .then(() => {
         server.listen(Number(PORT), '0.0.0.0', () => {
-            console.log(`🚀 Backend server running on port ${PORT}`);
+            console.log(`Backend server running on port ${PORT}`);
         });
     });
 

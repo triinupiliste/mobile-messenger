@@ -1,6 +1,6 @@
 import pool from '../config/database';
 import { IncomingInviteItem, Invite, InviteStatus, OutgoingInviteItem } from '../models/invite.model';
-import { decryptText } from '../utils/encryption.util';
+import { decryptFields } from '../utils/encryption.util';
 
 export class InviteRepository {
     static async createInvite(senderId: string, receiverId: string): Promise<Invite> {
@@ -39,11 +39,7 @@ export class InviteRepository {
         const result = await pool.query(query, [userId]);
         return result.rows.map((row: any) => ({
             ...row,
-            sender: {
-                ...row.sender,
-                email: row.sender?.email ? decryptText(row.sender.email) : row.sender?.email,
-                avatar_url: row.sender?.avatar_url ? decryptText(row.sender.avatar_url) : row.sender?.avatar_url,
-            },
+            sender: decryptFields({ ...row.sender }, ['email', 'avatar_url']),
         }));
     }
 
@@ -68,11 +64,7 @@ export class InviteRepository {
         if (!row) return null;
         return {
             ...row,
-            sender: {
-                ...row.sender,
-                email: row.sender?.email ? decryptText(row.sender.email) : row.sender?.email,
-                avatar_url: row.sender?.avatar_url ? decryptText(row.sender.avatar_url) : row.sender?.avatar_url,
-            },
+            sender: decryptFields({ ...row.sender }, ['email', 'avatar_url']),
         };
     }
 
@@ -93,11 +85,7 @@ export class InviteRepository {
         const result = await pool.query(query, [userId]);
         return result.rows.map((row: any) => ({
             ...row,
-            recipient: {
-                ...row.recipient,
-                email: row.recipient?.email ? decryptText(row.recipient.email) : row.recipient?.email,
-                avatar_url: row.recipient?.avatar_url ? decryptText(row.recipient.avatar_url) : row.recipient?.avatar_url,
-            },
+            recipient: decryptFields({ ...row.recipient }, ['email', 'avatar_url']),
         }));
     }
 

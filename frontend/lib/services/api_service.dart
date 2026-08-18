@@ -93,7 +93,7 @@ class ApiService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 && data['token'] != null) {
-      await StorageService.saveToken(data['token']);
+      await StorageService.setToken(data['token']);
     }
     return data;
   }

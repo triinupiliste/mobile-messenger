@@ -20,6 +20,26 @@ class AppColors {
   static const textPrimary = Color(0xFF2D3142);
   static const textSecondary = Color(0xFF8D99AE);
 
+  // Light neutral border used on cards, bubbles, and input fields throughout
+  // the app (chat bubbles, chat list rows, search field, theme swatches,
+  // the global divider theme, etc.) — kept as one named constant instead of
+  // the same hex literal being copy-pasted at every call site.
+  static const cardBorder = Color(0xFFEDEDF2);
+
+  // Soft drop shadow shared by low-elevation cards/bubbles (e.g. the chat
+  // room's reply-preview card and the typing indicator bubble).
+  static const softShadow = Color(0x0D000000); // Colors.black @ 5% opacity
+
+  // Slightly stronger shadow used for "floating" bottom bars (e.g. the chat
+  // room's message input bar).
+  static const floatingBarShadow = Color(0x14000000); // Colors.black @ ~8% opacity
+
+  // Darkens a color for the gradient endpoints used across primary-colored
+  // buttons/badges/avatars (send button, unread badges, theme swatches,
+  // "isMe" chat bubbles) so every gradient darkens by the same, named amount
+  // instead of a bare `Color.lerp(color, Colors.black, 0.18)!` at each spot.
+  static Color darken(Color color, [double amount = 0.18]) => Color.lerp(color, Colors.black, amount)!;
+
   static AppThemeName _currentTheme = AppThemeName.sunsetCoral;
   static AppThemeName get currentTheme => _currentTheme;
 

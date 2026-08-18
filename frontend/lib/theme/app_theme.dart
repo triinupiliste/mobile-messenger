@@ -131,7 +131,7 @@ class AppTheme {
         }),
       ),
 
-      dividerTheme: const DividerThemeData(color: Color(0xFFEDEDF2), thickness: 1, space: 1),
+      dividerTheme: const DividerThemeData(color: AppColors.cardBorder, thickness: 1, space: 1),
     );
   }
 }
