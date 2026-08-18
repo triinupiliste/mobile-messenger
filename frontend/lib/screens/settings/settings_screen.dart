@@ -43,9 +43,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await ThemeService.setTheme(theme);
 
     if (!mounted) return;
-    // Restart the app UI so every screen (including ones already on the
-    // navigation stack) picks up the new theme color.
+    // Rebuild the app UI so every screen (including ones already on the
+    // navigation stack) picks up the new theme color, without disrupting
+    // navigation or this screen's own state.
     RestartWidget.restartApp(context);
+    setState(() => _isApplying = false);
   }
 
   @override

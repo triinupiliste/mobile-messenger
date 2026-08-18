@@ -50,7 +50,11 @@ void main() {
 
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    runApp(const RestartWidget(child: MyApp()));
+    // Not const: RestartWidget's builder must construct a fresh MyApp
+    // instance on every theme-triggered rebuild (see restart_widget.dart) —
+    // a const instance would be reused/canonicalized, making theme refreshes
+    // a no-op.
+    runApp(RestartWidget(builder: (context) => MyApp()));
   }, (error, stackTrace) {
     // Catches uncaught async errors (e.g. from Futures/Timers/socket
     // callbacks) that would otherwise crash the isolate.
