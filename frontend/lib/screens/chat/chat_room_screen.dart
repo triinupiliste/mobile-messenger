@@ -71,6 +71,8 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
   bool _lastLoadingHistory = true;
 
   bool _isRecording = false;
+  int _recordingSeconds = 0;
+  Timer? _recordingTimer;
   bool _isUploadingMedia = false;
   bool _showJumpToLatestButton = false;
   Map<String, dynamic>? _replyingTo;
@@ -590,8 +592,19 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
   Future<void> _toggleRecording() async {
     if (!_isRecording) {
       await _audioService.startRecording();
-      setState(() => _isRecording = true);
+      setState(() {
+        _isRecording = true;
+        _recordingSeconds = 0;
+      });
+      // Shows the caller how long they've been talking so far — mirrors the
+      // playback side's time display, just counting up instead of down.
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() => _recordingSeconds++);
+      });
     } else {
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
       final path = await _audioService.stopRecording();
       setState(() => _isRecording = false);
       if (path != null) {
@@ -600,11 +613,18 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     }
   }
 
+  String _formatRecordingDuration(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   void dispose() {
     if (ActiveChatTracker.isChatActive(widget.chatId)) {
       ActiveChatTracker.setActiveChat(null);
     }
+    _recordingTimer?.cancel();
     _messageProvider.removeListener(_onMessagesChanged);
     SocketService.off(SocketEvents.errorFeedback, _onErrorFeedback);
     SocketService.off(SocketEvents.friendRemoved, _onFriendRemoved);
@@ -861,7 +881,18 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                               ),
                             )
-                          else ...[
+                          else if (_isRecording) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Icon(Icons.fiber_manual_record, color: Colors.red, size: 14),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Recording  ${_formatRecordingDuration(_recordingSeconds)}',
+                                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ] else ...[
                             IconButton(
                               icon: Icon(Icons.photo_outlined, color: AppColors.primary),
                               onPressed: () => _pickAndSendMedia(ImageSource.gallery),
@@ -872,26 +903,26 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                               onPressed: () => _pickAndSendMedia(ImageSource.camera),
                               tooltip: 'Take Photo or Video',
                             ),
-                            IconButton(
-                              icon: Icon(_isRecording ? Icons.stop_circle : Icons.mic_none, color: _isRecording ? Colors.red : AppColors.primary),
-                              onPressed: _toggleRecording,
-                              tooltip: _isRecording ? 'Stop Recording' : 'Record Audio',
-                            ),
-                          ],
-                          Expanded(
-                            child: TextField(
-                              controller: _messageController,
-                              onChanged: _handleTyping,
-                              minLines: 1,
-                              maxLines: 5,
-                              decoration: const InputDecoration(
-                                hintText: 'Type a message...',
-                                border: InputBorder.none,
-                                filled: false,
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _messageController,
+                                onChanged: _handleTyping,
+                                minLines: 1,
+                                maxLines: 5,
+                                decoration: const InputDecoration(
+                                  hintText: 'Type a message...',
+                                  border: InputBorder.none,
+                                  filled: false,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                ),
                               ),
                             ),
+                          ],
+                          IconButton(
+                            icon: Icon(_isRecording ? Icons.stop_circle : Icons.mic_none, color: _isRecording ? Colors.red : AppColors.primary),
+                            onPressed: _isUploadingMedia ? null : _toggleRecording,
+                            tooltip: _isRecording ? 'Stop Recording' : 'Record Audio',
                           ),
                         ],
                       ),

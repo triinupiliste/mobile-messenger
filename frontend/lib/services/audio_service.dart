@@ -8,6 +8,11 @@ class AudioService {
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _recordedPath;
 
+  // Exposed so a voice-message bubble can show a live seek bar/duration.
+  Stream<Duration> get onDurationChanged => _audioPlayer.onDurationChanged;
+  Stream<Duration> get onPositionChanged => _audioPlayer.onPositionChanged;
+  Stream<void> get onPlayerComplete => _audioPlayer.onPlayerComplete;
+
   // Start recording voice note
   Future<void> startRecording() async {
     if (await _audioRecorder.hasPermission()) {
@@ -27,13 +32,46 @@ class AudioService {
     return path ?? _recordedPath;
   }
 
-  // Play audio message
+  // A path/URL is "remote" if it's an already-absolute http(s) URL (legacy
+  // rows, see ApiService.mediaUrl's doc comment) or one of our own
+  // server-relative upload paths (e.g. '/uploads/xyz.m4a', what every voice
+  // message saved today actually stores). Anything else is a local device
+  // filesystem path (e.g. a just-recorded, not-yet-uploaded file).
+  bool _isRemote(String urlOrPath) =>
+      urlOrPath.startsWith('http://') ||
+      urlOrPath.startsWith('https://') ||
+      urlOrPath.startsWith('/uploads/');
+
+  // Loads a voice message's audio without starting playback, so its total
+  // duration can be shown (via onDurationChanged) before the user taps play.
+  Future<void> preload(String urlOrPath) async {
+    if (_isRemote(urlOrPath)) {
+      await _audioPlayer.setSourceUrl(ApiService.mediaUrl(urlOrPath));
+    } else {
+      await _audioPlayer.setSourceDeviceFile(urlOrPath);
+    }
+  }
+
+  // Play audio message. Previously this only resolved the playable server
+  // URL (host + auth token, see ApiService.mediaUrl) when the raw value
+  // already started with "http" — but every voice message actually stores a
+  // server-relative path like '/uploads/xyz.m4a', so that check always
+  // failed and this silently fell through to treating the string as a local
+  // file path that doesn't exist, playing nothing.
   Future<void> playAudio(String urlOrPath) async {
-    if (urlOrPath.startsWith('http')) {
+    if (_isRemote(urlOrPath)) {
       await _audioPlayer.play(UrlSource(ApiService.mediaUrl(urlOrPath)));
     } else {
       await _audioPlayer.play(DeviceFileSource(urlOrPath));
     }
+  }
+
+  Future<void> pauseAudio() async {
+    await _audioPlayer.pause();
+  }
+
+  Future<void> seek(Duration position) async {
+    await _audioPlayer.seek(position);
   }
 
   Future<void> stopAudio() async {

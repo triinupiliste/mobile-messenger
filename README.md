@@ -16,7 +16,8 @@ Users can create accounts, verify their email addresses, search for and invite c
 - Message editing and deletion
 - Chat list sorted by most recent activity, with archive/unarchive and per-user delete (clears history from just your own view, like WhatsApp)
 - Push notifications for new messages and invitations, with per-chat mute
-- Selectable app themes (Sunset Coral, Calm Forest, Ocean Blue) with an elevated, consistent design across every screen
+- Selectable app themes (Sunset Coral, Calm Forest, Ocean Blue) plus a dedicated dark mode, with an elevated, consistent design (custom typography, cached/fade-in media, gradient avatars, richer empty states) across every screen
+- Voice messages show a live recording timer while held and a seek bar with elapsed/total time during playback
 - AES-256 encryption of message content, profile fields, media files, and email addresses at rest, with a deterministic hash so encrypted emails can still be looked up for login/search
 
 ## Technology Stack
@@ -31,6 +32,7 @@ Users can create accounts, verify their email addresses, search for and invite c
 | Email | Brevo Email API for verification and password-reset messages |
 | Push notifications | Firebase Cloud Messaging (FCM) with `flutter_local_notifications` |
 | Media | `image_picker`, `record`, `audioplayers`, and server-side `ffmpeg` for photo, video, and voice messages |
+| UI | `google_fonts` (Manrope typography), `cached_network_image` + `shimmer` (cached, fade-in media with loading placeholders), Material 3 |
 | Deployment | Railway web service, PostgreSQL, and a distributed Android APK |
 
 ## Quick Start Guide for Reviewers
@@ -114,7 +116,7 @@ Want to run your own backend instead of the hosted one? See [Developer Setup](#d
 - Delete a chat from the chat list — it's only removed from your own view; the other participant and their history are unaffected.
 - Mute or unmute notifications for an individual chat from its menu.
 - Edit or delete your own messages from the chat room, or swipe a message to reply to it.
-- Switch the app's theme (Sunset Coral, Calm Forest, or Ocean Blue) from Profile → Settings.
+- Switch the app's theme (Sunset Coral, Calm Forest, or Ocean Blue), or toggle dark mode, from Profile → Settings.
 
 ### Reviewer Guide
 
@@ -127,7 +129,7 @@ Want to run your own backend instead of the hosted one? See [Developer Setup](#d
 | Message management | Reply to a message (swipe it), edit one of your own messages, and delete one. |
 | Chat list | Confirm chats sort by most recent message, and archive/unarchive/delete all work. |
 | Push notifications | Background the app, receive a message from another account, and confirm a push notification arrives (and is suppressed when the chat is muted). |
-| Theming | Open Settings and switch between the three themes without leaving the page; confirm the whole app (including other tabs) updates immediately. |
+| Theming | Open Settings and switch between the three themes and dark mode without leaving the page; confirm the whole app (including other tabs) updates immediately. |
 
 ## Developer Setup (Optional)
 

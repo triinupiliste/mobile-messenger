@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -385,10 +386,38 @@ class _AudioBubble extends StatefulWidget {
 class _AudioBubbleState extends State<_AudioBubble> {
   final AudioService _audioService = AudioService();
   bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+  StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<void>? _completeSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _durationSub = _audioService.onDurationChanged.listen((duration) {
+      if (!mounted) return;
+      setState(() => _duration = duration);
+    });
+    _positionSub = _audioService.onPositionChanged.listen((position) {
+      if (!mounted) return;
+      setState(() => _position = position);
+    });
+    _completeSub = _audioService.onPlayerComplete.listen((_) {
+      if (!mounted) return;
+      setState(() {
+        _isPlaying = false;
+        _position = Duration.zero;
+      });
+    });
+    // Loads the audio (without playing it) so its total length shows up
+    // right away, before the user taps play.
+    _audioService.preload(widget.url);
+  }
 
   Future<void> _togglePlayback() async {
     if (_isPlaying) {
-      await _audioService.stopAudio();
+      await _audioService.pauseAudio();
       setState(() => _isPlaying = false);
     } else {
       setState(() => _isPlaying = true);
@@ -396,8 +425,18 @@ class _AudioBubbleState extends State<_AudioBubble> {
     }
   }
 
+  String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   void dispose() {
+    _durationSub?.cancel();
+    _positionSub?.cancel();
+    _completeSub?.cancel();
     _audioService.stopAudio();
     _audioService.dispose();
     super.dispose();
@@ -406,21 +445,64 @@ class _AudioBubbleState extends State<_AudioBubble> {
   @override
   Widget build(BuildContext context) {
     final color = widget.isMe ? Colors.white : AppColors.primary;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, color: color, size: 32),
-          onPressed: _togglePlayback,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Voice message',
-          style: TextStyle(color: widget.isMe ? Colors.white : AppColors.textPrimary, fontSize: 14),
-        ),
-      ],
+    final trackColor = color.withValues(alpha: 0.25);
+    final hasDuration = _duration > Duration.zero;
+    final sliderMax = hasDuration ? _duration.inMilliseconds.toDouble() : 1.0;
+    final sliderValue = _position.inMilliseconds.toDouble().clamp(0.0, sliderMax);
+
+    return SizedBox(
+      width: 190,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, color: color, size: 32),
+            onPressed: _togglePlayback,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 20,
+                  child: SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 2.5,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                      activeTrackColor: color,
+                      inactiveTrackColor: trackColor,
+                      thumbColor: color,
+                      overlayColor: trackColor,
+                    ),
+                    child: Slider(
+                      value: sliderValue,
+                      max: sliderMax,
+                      onChanged: hasDuration
+                          ? (value) => setState(() => _position = Duration(milliseconds: value.toInt()))
+                          : null,
+                      onChangeEnd: hasDuration
+                          ? (value) => _audioService.seek(Duration(milliseconds: value.toInt()))
+                          : null,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    '${_formatDuration(_position)} / ${hasDuration ? _formatDuration(_duration) : '--:--'}',
+                    style: TextStyle(color: color.withValues(alpha: 0.85), fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
