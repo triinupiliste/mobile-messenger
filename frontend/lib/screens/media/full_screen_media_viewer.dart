@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import '../../services/api_service.dart';
 import '../../services/media_save_service.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Full-screen overlay for viewing a sent or received photo/video at full
 /// size. Images support pinch-to-zoom; videos play inline with basic
@@ -53,7 +54,7 @@ class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
       MediaSaveResult.permissionDenied => 'Permission to access the gallery was denied',
       MediaSaveResult.failed => 'Failed to save. Please try again.',
     };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    SnackBarHelper.show(context, message);
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/invite_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 
@@ -41,15 +42,11 @@ class InvitesScreenState extends State<InvitesScreen> {
         context.read<ChatProvider>().fetchChats();
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invitation $status successfully!')),
-        );
+        SnackBarHelper.show(context, 'Invitation $status successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        SnackBarHelper.show(context, 'Error: $e');
       }
     }
   }

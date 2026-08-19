@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import multer from 'multer';
 import { Request, Response, NextFunction } from 'express';
+import { UPLOAD_SIZE_LIMIT_BYTES, AVATAR_SIZE_LIMIT_BYTES } from '../config/constants';
 
 export const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
 
@@ -15,19 +16,18 @@ export function generateStoredFilename(originalName: string): string {
 }
 
 // Buffers in memory; files are encrypted before disk write (see MediaController).
-// 150MB covers a raw video upload before server-side compression brings it under 20MB.
 export const uploadMedia = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 150 * 1024 * 1024 },
+    limits: { fileSize: UPLOAD_SIZE_LIMIT_BYTES },
 });
 
-// Profile pictures are restricted to JPEG/PNG and 5MB, unlike general chat
-// media which allows more formats and a 20MB limit.
+// Profile pictures are restricted to JPEG/PNG, unlike general chat media
+// which allows more formats and a larger size limit.
 const AVATAR_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png'];
 
 const avatarUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: AVATAR_SIZE_LIMIT_BYTES },
     fileFilter: (_req, file, cb) => {
         if (!AVATAR_ALLOWED_MIME_TYPES.includes(file.mimetype)) {
             cb(new Error('Only JPEG and PNG images are allowed for profile pictures.'));

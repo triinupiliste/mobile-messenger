@@ -5,6 +5,7 @@ import { ChatRepository } from '../repositories/chat.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { PushService } from '../services/push.service';
 import { JWT_SECRET } from '../config/env';
+import { hasValidSessionVersion } from '../utils/session.util';
 
 function buildMessagePreview(content: string | null | undefined, mediaType: string): string {
     switch (mediaType) {
@@ -37,10 +38,9 @@ export function registerChatHandlers(io: Server) {
                 return next(new Error('Authentication error: Invalid or expired token'));
             }
             // Reject a token whose session version no longer matches — it belongs to a
-            // device signed out by a newer login (see login()/auth.middleware.ts). Missing `sv` = version 0.
-            const tokenVersion = typeof decoded.sv === 'number' ? decoded.sv : 0;
-            UserRepository.getSessionVersion(decoded.userId).then((currentVersion) => {
-                if (currentVersion === null || currentVersion !== tokenVersion) {
+            // device signed out by a newer login (see login()/auth.middleware.ts).
+            hasValidSessionVersion(decoded).then((valid) => {
+                if (!valid) {
                     return next(new Error('Authentication error: Signed in on another device'));
                 }
                 socket.data.user = decoded;
@@ -56,8 +56,14 @@ export function registerChatHandlers(io: Server) {
         // Join a personal room for direct notifications (e.g., invites)
         socket.join(userId);
 
-        // Join a specific chat room
-        socket.on('join_chat', (chatId: string) => {
+        // Join a specific chat room — only if the user is actually a
+        // participant, otherwise anyone could join arbitrary chat rooms by ID.
+        socket.on('join_chat', async (chatId: string) => {
+            const isParticipant = await ChatRepository.isUserInChat(chatId, userId);
+            if (!isParticipant) {
+                socket.emit('error_feedback', { message: 'You are not a participant in this chat.' });
+                return;
+            }
             socket.join(chatId);
             console.log(`User ${userId} joined chat room: ${chatId}`);
         });

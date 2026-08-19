@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../widgets/auth/auth_header.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -58,9 +59,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _errorMessage = error;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful! Verification email sent.')),
-      );
+      SnackBarHelper.show(context, 'Registration successful! Verification email sent.');
       Navigator.pop(context);
     }
   }
@@ -101,11 +100,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             padding: const EdgeInsets.all(12),
                             margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              border: Border.all(color: Colors.red.shade200),
+                              color: AppColors.errorBackground,
+                              border: Border.all(color: AppColors.errorBorder),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700)),
+                            child: Text(_errorMessage!, style: const TextStyle(color: AppColors.error)),
                           ),
                         TextFormField(
                           controller: _usernameController,

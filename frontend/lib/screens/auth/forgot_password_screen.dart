@@ -82,13 +82,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             padding: const EdgeInsets.all(12),
                             margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              border: Border.all(color: Colors.green.shade200),
+                              color: AppColors.successBackground,
+                              border: Border.all(color: AppColors.successBorder),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               _errorMessage ?? 'If an account with that email exists, a password reset link has been sent.',
-                              style: TextStyle(color: Colors.green.shade700),
+                              style: const TextStyle(color: AppColors.success),
                             ),
                           ),
                         TextFormField(

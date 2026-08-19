@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../../widgets/profile/avatar_picker.dart';
 import '../settings/settings_screen.dart';
@@ -52,9 +53,7 @@ class ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load profile data.')),
-        );
+        SnackBarHelper.show(context, 'Failed to load profile data.');
       }
     }
   }
@@ -152,15 +151,11 @@ class ProfileScreenState extends State<ProfileScreen> {
         _selectedAvatarFile = null;
         _isEditing = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
-      );
+      SnackBarHelper.show(context, 'Profile updated successfully!');
       return true;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-        );
+        SnackBarHelper.show(context, e.toString().replaceFirst('Exception: ', ''));
       }
       return false;
     } finally {

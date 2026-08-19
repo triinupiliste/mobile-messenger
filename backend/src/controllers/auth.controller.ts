@@ -7,10 +7,12 @@ import { validatePasswordStrength, isValidEmail } from '../utils/validator.util'
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service';
 import { JWT_SECRET } from '../config/env';
 import { getIO } from '../sockets/socket.instance';
-
-const VERIFICATION_TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
-const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
-const BCRYPT_SALT_ROUNDS = 10;
+import { escapeHtml } from '../utils/html.util';
+import {
+    VERIFICATION_TOKEN_LIFETIME_MS,
+    RESET_TOKEN_LIFETIME_MS,
+    BCRYPT_SALT_ROUNDS,
+} from '../config/constants';
 
 function createVerificationToken(): { rawToken: string; tokenHash: string; expiresAt: Date } {
     const rawToken = randomBytes(32).toString('hex');
@@ -28,15 +30,6 @@ function createResetToken(): { rawToken: string; tokenHash: string; expiresAt: D
         tokenHash: createHash('sha256').update(rawToken).digest('hex'),
         expiresAt: new Date(Date.now() + RESET_TOKEN_LIFETIME_MS),
     };
-}
-
-function escapeHtml(value: string): string {
-    return value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
 }
 
 // Visual chrome for the verify-email/reset-password pages a user reaches by

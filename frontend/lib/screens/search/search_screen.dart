@@ -8,6 +8,7 @@ import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/json_utils.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../chat/chat_room_screen.dart';
@@ -164,11 +165,7 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
-        ),
-      );
+      SnackBarHelper.show(context, error.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() => _sendingInviteTo.remove(user.id));

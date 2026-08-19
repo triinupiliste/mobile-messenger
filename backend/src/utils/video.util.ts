@@ -4,12 +4,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
+import { COMPRESSION_TIMEOUT_MS } from '../config/constants';
 
 const execFileAsync = promisify(execFile);
-
-// Bounds how much CPU/wall-clock time a single upload's compression can tie
-// up on the server, in case ffmpeg gets stuck on a malformed/unusual file.
-const COMPRESSION_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Re-encodes video via the ffmpeg binary in the server container (see
 // Dockerfile) — runs server-side since client-side compression (video_compress plugin) was unreliable across devices.

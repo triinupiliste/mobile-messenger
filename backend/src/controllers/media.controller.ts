@@ -4,11 +4,9 @@ import path from 'path';
 import { UPLOAD_DIR, generateStoredFilename } from '../middleware/upload.middleware';
 import { encryptBuffer, decryptBuffer } from '../utils/encryption.util';
 import { compressVideo } from '../utils/video.util';
+import { MAX_MEDIA_SIZE_BYTES } from '../config/constants';
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp']);
-
-// Final size cap enforced after compression, matching the client's limit.
-const MAX_MEDIA_SIZE_BYTES = 20 * 1024 * 1024;
 
 const MIME_TYPES_BY_EXTENSION: Record<string, string> = {
     '.jpg': 'image/jpeg',

@@ -37,6 +37,14 @@ export class ChatRepository {
         return result.rows[0]?.chat_id || null;
     }
 
+    static async isUserInChat(chatId: string, userId: string): Promise<boolean> {
+        const result = await pool.query(
+            'SELECT 1 FROM chat_participants WHERE chat_id = $1 AND user_id = $2',
+            [chatId, userId],
+        );
+        return (result.rowCount ?? 0) > 0;
+    }
+
     // Distinct "other participant" ids across all this user's chats — used to
     // know who to notify live on profile/avatar changes.
     static async getContactIds(userId: string): Promise<string[]> {

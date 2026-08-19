@@ -8,6 +8,7 @@ import '../../services/api_service.dart';
 import '../../services/audio_service.dart';
 import '../../services/video_thumbnail_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/message_utils.dart';
 
 class MessageBubble extends StatefulWidget {
   final String messageId;
@@ -110,22 +111,6 @@ class _MessageBubbleState extends State<MessageBubble> {
         ),
       ),
     );
-  }
-
-  String _replyPreviewText(Map<String, dynamic> reply) {
-    if (reply['is_deleted'] == true) return 'This message was deleted';
-    final content = (reply['content'] ?? '').toString();
-    if (content.isNotEmpty) return content;
-    switch (reply['media_type']) {
-      case 'image':
-        return 'Photo';
-      case 'video':
-        return 'Video';
-      case 'audio':
-        return 'Voice message';
-      default:
-        return '';
-    }
   }
 
   Widget _buildStatusIcon() {
@@ -309,7 +294,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              _replyPreviewText(widget.replyTo!),
+                              replyPreviewText(widget.replyTo!),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

@@ -14,6 +14,8 @@ import '../../services/audio_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/message_utils.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/typing_indicator_bubble.dart';
 import '../../widgets/common/empty_state.dart';
@@ -102,9 +104,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     // directly by the screen rather than living in MessageProvider.
     _onErrorFeedback = (data) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message']?.toString() ?? 'Something went wrong.')),
-      );
+      SnackBarHelper.show(context, data['message']?.toString() ?? 'Something went wrong.');
     };
     SocketService.on(SocketEvents.errorFeedback, _onErrorFeedback);
 
@@ -119,9 +119,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).popUntil((route) => route.isFirst);
       HomeScreen.homeKey.currentState?.switchToChatsTab();
-      messenger.showSnackBar(
-        SnackBar(content: Text('${widget.contactName} removed you as a friend.')),
-      );
+      SnackBarHelper.showWithMessenger(messenger, '${widget.contactName} removed you as a friend.');
     };
     SocketService.on(SocketEvents.friendRemoved, _onFriendRemoved);
 
@@ -248,22 +246,6 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
 
   String _replySenderLabel(Map<String, dynamic> replyTo) {
     return replyTo['sender_id'] == _messageProvider.currentUserId ? 'You' : widget.contactName;
-  }
-
-  String _replyPreviewText(Map<String, dynamic> replyTo) {
-    if (replyTo['is_deleted'] == true) return 'This message was deleted';
-    final content = (replyTo['content'] ?? '').toString();
-    if (content.isNotEmpty) return content;
-    switch (replyTo['media_type']) {
-      case 'image':
-        return 'Photo';
-      case 'video':
-        return 'Video';
-      case 'audio':
-        return 'Voice message';
-      default:
-        return '';
-    }
   }
 
   void _sendMessage({String? mediaUrl, String mediaType = 'text'}) {
@@ -405,7 +387,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
           final message = mediaKind == 'video'
               ? 'This video is too large to send. Try a shorter clip.'
               : 'Media file size exceeds the 20MB limit.';
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          SnackBarHelper.show(context, message);
         }
         return;
       }
@@ -413,9 +395,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       await _uploadAndSendMedia(file, mediaKind);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to prepare $mediaKind: ${e.toString().replaceFirst('Exception: ', '')}')),
-        );
+        SnackBarHelper.show(context, 'Failed to prepare $mediaKind: ${e.toString().replaceFirst('Exception: ', '')}');
       }
     }
   }
@@ -433,9 +413,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       _sendMessage(mediaUrl: url, mediaType: mediaType);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send $mediaType: ${e.toString().replaceFirst('Exception: ', '')}')),
-        );
+        SnackBarHelper.show(context, 'Failed to send $mediaType: ${e.toString().replaceFirst('Exception: ', '')}');
       }
     } finally {
       if (mounted) setState(() => _isUploadingMedia = false);
@@ -476,9 +454,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       HomeScreen.homeKey.currentState?.switchToChatsTab();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to remove friend: ${e.toString().replaceFirst('Exception: ', '')}')),
-      );
+      SnackBarHelper.show(context, 'Failed to remove friend: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 
@@ -496,9 +472,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     if (!mounted) return;
 
     if (profile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'Failed to load profile.')),
-      );
+      SnackBarHelper.show(context, error ?? 'Failed to load profile.');
       return;
     }
 
@@ -609,9 +583,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                 final nowMuted = NotificationSettingsService.isChatMuted(widget.chatId);
                 ApiService.setChatMuted(widget.chatId, nowMuted);
                 setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(nowMuted ? 'Chat muted' : 'Chat unmuted')),
-                );
+                SnackBarHelper.show(context, nowMuted ? 'Chat muted' : 'Chat unmuted');
               } else if (value == 'view_profile') {
                 _viewProfile();
               } else if (value == 'remove_friend') {
@@ -785,7 +757,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
                         ),
                         Text(
-                          _replyPreviewText(_replyingTo!),
+                          replyPreviewText(_replyingTo!),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 12, color: AppColors.textSecondary),

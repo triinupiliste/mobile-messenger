@@ -4,6 +4,7 @@ import '../../providers/chat_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/json_utils.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 import 'chat_room_screen.dart';
@@ -140,14 +141,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
                   if (direction == DismissDirection.startToEnd) {
                     chatProvider.toggleArchiveChat(chatId);
-                    final controller = messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(isArchived ? 'Chat unarchived' : 'Chat archived'),
-                        duration: const Duration(seconds: 5),
-                        action: SnackBarAction(
-                          label: 'Undo',
-                          onPressed: () => chatProvider.toggleArchiveChat(chatId),
-                        ),
+                    final controller = SnackBarHelper.showWithMessenger(
+                      messenger,
+                      isArchived ? 'Chat unarchived' : 'Chat archived',
+                      duration: const Duration(seconds: 5),
+                      action: SnackBarAction(
+                        label: 'Undo',
+                        onPressed: () => chatProvider.toggleArchiveChat(chatId),
                       ),
                     );
                     Future.delayed(const Duration(seconds: 5), controller.close);
@@ -155,14 +155,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   }
 
                   chatProvider.deleteChat(chatId);
-                  final controller = messenger.showSnackBar(
-                    SnackBar(
-                      content: const Text('Chat deleted'),
-                      duration: const Duration(seconds: 5),
-                      action: SnackBarAction(
-                        label: 'Undo',
-                        onPressed: () => chatProvider.undoDeleteChat(),
-                      ),
+                  final controller = SnackBarHelper.showWithMessenger(
+                    messenger,
+                    'Chat deleted',
+                    duration: const Duration(seconds: 5),
+                    action: SnackBarAction(
+                      label: 'Undo',
+                      onPressed: () => chatProvider.undoDeleteChat(),
                     ),
                   );
                   Future.delayed(const Duration(seconds: 5), controller.close);

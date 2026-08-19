@@ -244,17 +244,6 @@ export class UserRepository {
         );
     }
 
-    // Looks up by reset token without consuming it, so the reset form can be
-    // shown/rejected before a new password is submitted.
-    static async findByValidResetToken(resetTokenHash: string): Promise<User | null> {
-        const query = `
-            SELECT * FROM users
-            WHERE reset_token = $1
-              AND reset_token_expires > CURRENT_TIMESTAMP`;
-        const result = await pool.query(query, [resetTokenHash]);
-        return result.rows[0] || null;
-    }
-
     // Atomically consumes the reset token: only succeeds if it's still valid
     // and unexpired, and clears it afterwards so it can't be replayed.
     static async resetPassword(resetTokenHash: string, passwordHash: string): Promise<User | null> {

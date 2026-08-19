@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/snackbar_helper.dart';
 import '../../widgets/auth/auth_header.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
@@ -31,9 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final message = authProvider.forceLogoutMessage;
       if (message != null) {
         authProvider.clearForceLogoutMessage();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
-        );
+        SnackBarHelper.show(context, message, duration: const Duration(seconds: 6));
       }
     });
   }
@@ -99,9 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final message = await authProvider.resendVerificationEmail(email);
     if (!mounted) return;
     setState(() => _isResendingVerification = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message ?? 'Verification email sent.')),
-    );
+    SnackBarHelper.show(context, message ?? 'Verification email sent.');
   }
 
   @override

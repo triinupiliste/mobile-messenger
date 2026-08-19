@@ -19,6 +19,9 @@ class AppColors {
   static const error = Color(0xFFD90429);
   static Color errorBackground = _light.errorBackground;
   static Color errorBorder = _light.errorBorder;
+  static const success = Color(0xFF2E7D32);
+  static Color successBackground = _light.successBackground;
+  static Color successBorder = _light.successBorder;
   static const warning = Color(0xFFFFA000);
   static const onPrimary = Colors.white;            // Text/icons drawn on colored surfaces
   static Color textPrimary = _light.textPrimary;
@@ -63,6 +66,8 @@ class AppColors {
     floatingBarShadow = palette.floatingBarShadow;
     errorBackground = palette.errorBackground;
     errorBorder = palette.errorBorder;
+    successBackground = palette.successBackground;
+    successBorder = palette.successBorder;
   }
 
   // So UI needing to show a specific theme's swatch (e.g. Settings theme picker)
@@ -105,6 +110,8 @@ class _NeutralPalette {
   final Color floatingBarShadow;
   final Color errorBackground;
   final Color errorBorder;
+  final Color successBackground;
+  final Color successBorder;
 
   const _NeutralPalette({
     required this.background,
@@ -117,6 +124,8 @@ class _NeutralPalette {
     required this.floatingBarShadow,
     required this.errorBackground,
     required this.errorBorder,
+    required this.successBackground,
+    required this.successBorder,
   });
 }
 
@@ -131,6 +140,8 @@ const _light = _NeutralPalette(
   floatingBarShadow: Color(0x14000000), // Colors.black @ ~8% opacity
   errorBackground: Color(0xFFFFEBEE),
   errorBorder: Color(0xFFEF9A9A),
+  successBackground: Color(0xFFE8F5E9),
+  successBorder: Color(0xFFA5D6A7),
 );
 
 const _dark = _NeutralPalette(
@@ -144,5 +155,7 @@ const _dark = _NeutralPalette(
   floatingBarShadow: Color(0x40000000),
   errorBackground: Color(0xFF3A1F22),
   errorBorder: Color(0xFF6B2E33),
+  successBackground: Color(0xFF1E3A22),
+  successBorder: Color(0xFF3D6B45),
 );
 

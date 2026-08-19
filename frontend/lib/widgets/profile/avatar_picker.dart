@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/snackbar_helper.dart';
 import '../common/user_avatar.dart';
 
 class AvatarPicker extends StatelessWidget {
@@ -49,9 +50,7 @@ class AvatarPicker extends StatelessWidget {
     final extension = file.path.split('.').last.toLowerCase();
     if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Only JPEG and PNG images are supported.')),
-        );
+        SnackBarHelper.show(context, 'Only JPEG and PNG images are supported.');
       }
       return;
     }
@@ -59,9 +58,7 @@ class AvatarPicker extends StatelessWidget {
     const maxBytes = 5 * 1024 * 1024;
     if (await file.length() > maxBytes) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile pictures must be 5MB or smaller.')),
-        );
+        SnackBarHelper.show(context, 'Profile pictures must be 5MB or smaller.');
       }
       return;
     }

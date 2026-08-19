@@ -1,3 +1,5 @@
+import { escapeHtml } from '../utils/html.util';
+
 interface SendMailOptions {
     to: string;
     subject: string;
@@ -19,19 +21,6 @@ interface BrevoResponse {
 
 function getBaseUrl(): string {
     return (process.env.APP_BASE_URL || 'http://localhost:5000/api').replace(/\/$/, '');
-}
-
-function escapeHtml(value: string): string {
-    return value.replace(/[&<>'"]/g, (character) => {
-        const entities: Record<string, string> = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            "'": '&#39;',
-            '"': '&quot;',
-        };
-        return entities[character];
-    });
 }
 
 async function sendMail({ to, subject, html, text }: SendMailOptions): Promise<BrevoResponse> {
