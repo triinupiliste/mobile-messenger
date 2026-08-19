@@ -18,6 +18,12 @@ class ChatProvider with ChangeNotifier {
   int? _pendingDeleteIndex;
   Timer? _pendingDeleteTimer;
 
+  // Stored so dispose() can unregister exactly these callbacks.
+  late final void Function(dynamic) _onReceiveMessage;
+  late final void Function(dynamic) _onFriendRemoved;
+  late final void Function(dynamic) _onInviteResponded;
+  late final void Function(dynamic) _onProfileUpdated;
+
   List<ChatModel> get chats => _chats;
   bool get isLoading => _isLoading;
 
@@ -76,7 +82,7 @@ class ChatProvider with ChangeNotifier {
   void _initGlobalSocketListener() {
     if (_socketListenerAttached) return;
     try {
-      SocketService.socket.on(SocketEvents.receiveMessage, (data) {
+      _onReceiveMessage = (data) {
         final chatId = data['chat_id'] ?? data['chatId'];
         final index = _chats.indexWhere((c) => c.chatId == chatId);
         final senderId = data['sender_id']?.toString();
@@ -111,26 +117,29 @@ class ChatProvider with ChangeNotifier {
           // If it's a brand new chat, fetch the full list again
           fetchChats();
         }
-      });
+      };
+      SocketService.on(SocketEvents.receiveMessage, _onReceiveMessage);
 
       // The other participant removed us as a friend; drop the chat live.
-      SocketService.socket.on(SocketEvents.friendRemoved, (data) {
+      _onFriendRemoved = (data) {
         final chatId = data['chatId'];
         final removed = _chats.any((c) => c.chatId == chatId);
         if (!removed) return;
         _chats.removeWhere((c) => c.chatId == chatId);
         notifyListeners();
-      });
+      };
+      SocketService.on(SocketEvents.friendRemoved, _onFriendRemoved);
 
       // If an invite we sent was accepted, a chat now exists on the backend; refresh to show it.
-      SocketService.socket.on(SocketEvents.inviteResponded, (data) {
+      _onInviteResponded = (data) {
         if (data['status'] == 'accepted') {
           fetchChats();
         }
-      });
+      };
+      SocketService.on(SocketEvents.inviteResponded, _onInviteResponded);
 
       // A contact changed their username/avatar; patch it into any chat we have with them.
-      SocketService.socket.on(SocketEvents.profileUpdated, (data) {
+      _onProfileUpdated = (data) {
         final userId = extractUserId(data, 'userId');
         if (userId == null) return;
         final index = _chats.indexWhere((c) => c.contactId == userId);
@@ -150,7 +159,8 @@ class ChatProvider with ChangeNotifier {
           isMuted: existing.isMuted,
         );
         notifyListeners();
-      });
+      };
+      SocketService.on(SocketEvents.profileUpdated, _onProfileUpdated);
 
       _socketListenerAttached = true;
     } catch (e) {
@@ -238,5 +248,16 @@ class ChatProvider with ChangeNotifier {
       }
       rethrow;
     }
+  }
+
+  @override
+  void dispose() {
+    if (_socketListenerAttached) {
+      SocketService.off(SocketEvents.receiveMessage, _onReceiveMessage);
+      SocketService.off(SocketEvents.friendRemoved, _onFriendRemoved);
+      SocketService.off(SocketEvents.inviteResponded, _onInviteResponded);
+      SocketService.off(SocketEvents.profileUpdated, _onProfileUpdated);
+    }
+    super.dispose();
   }
 }

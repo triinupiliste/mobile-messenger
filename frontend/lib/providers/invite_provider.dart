@@ -14,6 +14,11 @@ class InviteProvider with ChangeNotifier {
   // tab open since they arrived). Drives the badge on the bottom nav icon.
   final Set<String> _seenInviteIds = {};
 
+  // Stored so dispose() can unregister exactly these callbacks.
+  late final void Function(dynamic) _onNewInvite;
+  late final void Function(dynamic) _onInviteResponded;
+  late final void Function(dynamic) _onProfileUpdated;
+
   List<dynamic> get incoming => _incoming;
   List<dynamic> get outgoing => _outgoing;
   bool get isLoading => _isLoading;
@@ -55,14 +60,15 @@ class InviteProvider with ChangeNotifier {
   void _initGlobalSocketListener() {
     if (_socketListenerAttached) return;
     try {
-      SocketService.socket.on(SocketEvents.newInvite, (data) {
+      _onNewInvite = (data) {
         final id = _inviteId(data);
         if (id.isEmpty || _incoming.any((invite) => _inviteId(invite) == id)) return;
         _incoming = [data, ..._incoming];
         notifyListeners();
-      });
+      };
+      SocketService.on(SocketEvents.newInvite, _onNewInvite);
 
-      SocketService.socket.on(SocketEvents.inviteResponded, (data) {
+      _onInviteResponded = (data) {
         final id = _inviteId(data);
         final index = _outgoing.indexWhere((invite) => _inviteId(invite) == id);
         if (index == -1) return;
@@ -70,10 +76,11 @@ class InviteProvider with ChangeNotifier {
         // pending outgoing list, matching what a fresh fetch would return.
         _outgoing = List.of(_outgoing)..removeAt(index);
         notifyListeners();
-      });
+      };
+      SocketService.on(SocketEvents.inviteResponded, _onInviteResponded);
 
-        // A sender/recipient we have a pending invite with changed their username/avatar.
-        SocketService.socket.on(SocketEvents.profileUpdated, (data) {
+      // A sender/recipient we have a pending invite with changed their username/avatar.
+      _onProfileUpdated = (data) {
         final userId = extractUserId(data, 'userId');
         if (userId == null) return;
         var changed = false;
@@ -103,7 +110,8 @@ class InviteProvider with ChangeNotifier {
         }).toList();
 
         if (changed) notifyListeners();
-      });
+      };
+      SocketService.on(SocketEvents.profileUpdated, _onProfileUpdated);
 
       _socketListenerAttached = true;
     } catch (e) {
@@ -118,5 +126,15 @@ class InviteProvider with ChangeNotifier {
     _incoming = _incoming.where((invite) => _inviteId(invite) != inviteId).toList();
     notifyListeners();
     await fetchInvites();
+  }
+
+  @override
+  void dispose() {
+    if (_socketListenerAttached) {
+      SocketService.off(SocketEvents.newInvite, _onNewInvite);
+      SocketService.off(SocketEvents.inviteResponded, _onInviteResponded);
+      SocketService.off(SocketEvents.profileUpdated, _onProfileUpdated);
+    }
+    super.dispose();
   }
 }
