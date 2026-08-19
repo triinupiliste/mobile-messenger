@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 
 /// Decorative header shared by the login/register/forgot-password screens:
-/// a couple of soft, oversized blurred color blobs behind a gradient icon
-/// badge, followed by a headline + subtitle. Replaces the previous plain
-/// "Icon + Text" stack that made the auth screens feel like an empty form.
+/// soft blurred color blobs behind a gradient icon badge, followed by a
+/// headline + subtitle.
 class AuthHeader extends StatelessWidget {
   final IconData icon;
   final String title;

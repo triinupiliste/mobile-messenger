@@ -15,10 +15,8 @@ export function encryptText(text: string): string {
 export function decryptText(text: string): string {
     const parts = text.split(':');
     if (parts.length !== 2) {
-        // encryptText() always produces an "iv:ciphertext" pair, so reaching this
-        // branch means the stored value never went through encryptText() (e.g.
-        // legacy/manually-inserted data). Log it so any accidental plaintext
-        // write is visible instead of silently passing through unnoticed.
+        // Reaching here means the value never went through encryptText() (e.g.
+        // legacy/manually-inserted data) — log it so accidental plaintext writes are visible.
         console.warn('decryptText: value is not in the expected iv:ciphertext format, returning as-is.');
         return text;
     }
@@ -31,9 +29,8 @@ export function decryptText(text: string): string {
     return decrypted;
 }
 
-// Binary-safe variants for encrypting file contents (images, video, audio) at rest.
-// The IV is stored as the first 16 bytes of the output so it travels alongside
-// the ciphertext without needing a separate text-based encoding like encryptText does.
+// Binary-safe variants for encrypting file contents at rest. IV is stored as
+// the first 16 bytes of output rather than a separate text encoding.
 export function encryptBuffer(buffer: Buffer): Buffer {
     const iv = crypto.randomBytes(IV_LENGTH);
     const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
@@ -50,27 +47,14 @@ export function decryptBuffer(buffer: Buffer): Buffer {
     return Buffer.concat([decipher.update(encrypted), decipher.final()]);
 }
 
-// AES-256-CBC (used above) picks a random IV per call, so the same input
-// never produces the same ciphertext twice — that's what makes it secure,
-// but it also means encrypted columns can't be searched/matched with plain
-// SQL (`=`/ILIKE) directly. For fields that must stay encrypted at rest but
-// also need an exact-match lookup (e.g. finding a user by email for login,
-// or enforcing "email already in use"), we additionally store a deterministic
-// HMAC-SHA256 of the normalized value in a separate `*_hash` column. HMAC is
-// one-way (can't be reversed to recover the original value) and, unlike a
-// plain hash, requires ENCRYPTION_KEY to compute — so it can't be brute-forced
-// offline from the database alone the way an unsalted SHA-256 lookup table
-// could be. Callers must normalize (trim + lowercase) the value themselves
-// before calling this, so the same email always hashes identically.
+// Deterministic HMAC-SHA256 for exact-match lookups on encrypted columns
+// (AES's IV means they can't be matched with `=`). Keyed by ENCRYPTION_KEY so it can't be brute-forced from the DB alone.
 export function hashForLookup(normalizedValue: string): string {
     return crypto.createHmac('sha256', ENCRYPTION_KEY).update(normalizedValue).digest('hex');
 }
 
-// Decrypts one or more fields on a row/object in place, skipping any that are
-// null/undefined/empty. Centralizes the "field ? decryptText(field) : field"
-// pattern that used to be copy-pasted at every call site across the
-// repositories (profiles, invites, chat list previews, etc). Mutates and
-// returns the same object so it can be used inline (e.g. in a `.map(...)`).
+// Decrypts fields in place, skipping null/empty ones — centralizes the
+// decrypt-if-present pattern used across repositories. Mutates and returns the same object.
 export function decryptFields<T extends Record<string, any>>(
     row: T | null | undefined,
     fields: (keyof T)[],

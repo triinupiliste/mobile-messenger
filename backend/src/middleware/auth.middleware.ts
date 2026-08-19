@@ -3,21 +3,15 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env';
 import { UserRepository } from '../repositories/user.repository';
 
-// A logged-in-elsewhere response shape the frontend recognizes to force a
-// local logout (see AuthProvider/ApiService on the Flutter side) rather than
-// just showing a generic "session expired" error.
+// Recognized by the Flutter app's AuthProvider/ApiService to force a local
+// logout instead of showing a generic "session expired" error.
 const SESSION_INVALIDATED_RESPONSE = {
     error: 'You have been logged out because your account was signed in on another device.',
     code: 'SESSION_INVALIDATED',
 };
 
-// Confirms the JWT's embedded session version still matches the account's
-// current one in the database. A mismatch means the account has since logged
-// in on another device (which bumps the version), so this token — even
-// though it's a validly-signed, unexpired JWT — is no longer the active
-// session and must be rejected. Tokens issued before this feature existed
-// have no `sv` claim; treated as version 0 so they keep working until the
-// next login bumps the column past that.
+// A version mismatch means the account logged in on another device since
+// this token was issued. Tokens without an `sv` claim (pre-feature) are treated as version 0.
 async function hasValidSessionVersion(decoded: any): Promise<boolean> {
     const tokenVersion = typeof decoded.sv === 'number' ? decoded.sv : 0;
     const currentVersion = await UserRepository.getSessionVersion(decoded.userId);
@@ -51,10 +45,8 @@ export function verifyToken(req: Request, res: Response, next: NextFunction): vo
     });
 }
 
-// Same as verifyToken, but also accepts the JWT via a `?token=` query parameter.
-// Needed for the /uploads/:filename endpoint: native media widgets (Image,
-// VideoPlayerController, video_thumbnail, audioplayers) load media by URL and
-// can't attach an Authorization header, so the token travels in the URL instead.
+// Same as verifyToken, but also accepts the JWT via ?token= — native media
+// widgets (Image, VideoPlayerController, etc.) load by URL and can't set headers.
 export function verifyMediaToken(req: Request, res: Response, next: NextFunction): void {
     const authHeader = req.headers['authorization'];
     const headerToken = authHeader && authHeader.split(' ')[1];

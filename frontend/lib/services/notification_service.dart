@@ -29,23 +29,16 @@ class ActiveChatTracker {
   }
 }
 
-// Tracks whether the app itself is currently in the foreground (as opposed
-// to backgrounded — e.g. the user switched to another app or locked the
-// screen). ActiveChatTracker alone isn't enough for this: a chat screen
-// stays mounted (and its socket listeners stay registered) even while the
-// app is backgrounded, since the user simply switched away without
-// navigating back out of it. Anything that treats "this chat is on screen"
-// as "the user is actually looking at/reading it right now" — marking
-// messages read, suppressing notifications — must check this too.
+// Tracks whether the app is currently foregrounded. ActiveChatTracker alone isn't
+// enough: a chat screen stays mounted while backgrounded, so anything treating
+// "chat is on screen" as "user is looking at it" must check this too.
 class AppLifecycleTracker {
   static bool _isForeground = true;
 
   static bool get isForeground => _isForeground;
 
-  // Notified whenever the app transitions from backgrounded back to the
-  // foreground, so anything that skipped acting while backgrounded (e.g. a
-  // still-open chat screen that couldn't mark newly-arrived messages read)
-  // gets a chance to catch up now that the user is actually looking again.
+  // Notified when the app returns to the foreground, so things that skipped
+  // acting while backgrounded (e.g. marking messages read) can catch up.
   static final List<void Function()> _foregroundListeners = [];
 
   static void addForegroundListener(void Function() listener) {

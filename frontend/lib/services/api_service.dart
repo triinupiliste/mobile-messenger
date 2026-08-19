@@ -5,12 +5,9 @@ import 'package:http_parser/http_parser.dart';
 import '../config/server_config.dart';
 import 'storage_service.dart';
 
-// The http package's MultipartFile.fromPath() does NOT infer a content-type
-// from the file's extension — it silently defaults to
-// application/octet-stream unless one is passed explicitly. The backend's
-// avatar upload endpoint filters on the multipart file's mimetype, so without
-// this every avatar upload (including PNGs) was being rejected regardless of
-// the actual image format.
+// MultipartFile.fromPath() doesn't infer content-type from the extension and
+// defaults to application/octet-stream, which the backend's avatar upload
+// endpoint rejects based on mimetype.
 MediaType? _imageContentTypeForPath(String path) {
   final extension = path.split('.').last.toLowerCase();
   switch (extension) {
@@ -24,10 +21,9 @@ MediaType? _imageContentTypeForPath(String path) {
   }
 }
 
-// Thrown when the backend reports that this account's token is no longer the
-// active session (i.e. it was signed in on another device, which invalidates
-// every previously-issued token). Callers should treat this as "log out
-// locally", distinct from an ordinary network/server error.
+// Thrown when the backend reports this token is no longer the active session
+// (signed in on another device). Callers should log out locally instead of
+// showing a generic error.
 class SessionInvalidatedException implements Exception {
   final String message;
   SessionInvalidatedException(this.message);
@@ -43,11 +39,9 @@ class ApiService {
     'ngrok-skip-browser-warning': 'true',
   };
 
-  // ngrok's free tier serves an HTML interstitial warning page to any
-  // non-browser request unless this header is present, which would
-  // otherwise break JSON parsing for every API call. Exposed publicly so
-  // other services making their own native network requests for media URLs
-  // (video thumbnail generation, video playback) can send it too.
+  // ngrok's free tier serves an HTML interstitial page to non-browser requests
+  // without this header, breaking JSON parsing. Exposed publicly so other
+  // services fetching media URLs directly can send it too.
   static const Map<String, String> _ngrokHeader = ngrokHeader;
 
   static Future<Map<String, String>> _getHeaders() async {
@@ -59,19 +53,10 @@ class ApiService {
     };
   }
 
-  // The /uploads/:filename endpoint requires a JWT, but native media widgets
-  // (Image.network, NetworkImage, VideoPlayerController, video_thumbnail,
-  // audioplayers) fetch a URL directly and can't attach an Authorization
-  // header, so the token is appended as a query parameter instead. Call this
-  // wherever a media URL from the backend is handed to one of those APIs.
-  //
-  // The backend now returns/stores these as paths relative to itself (e.g.
-  // '/uploads/xyz.jpg') rather than a full URL, since the host (e.g. an
-  // ngrok tunnel) can change between restarts — a baked-in absolute URL
-  // would otherwise turn into a dead link the next time that happens. Old
-  // rows created before this change may still hold a full absolute URL;
-  // those are left as-is here (already a dead link if the host has since
-  // changed — re-saving/re-uploading fixes it).
+  // Native media widgets (Image.network, VideoPlayerController, etc.) can't attach an
+  // Authorization header, so the token is appended as a query param instead. Backend
+  // stores media as paths relative to itself (host can change between ngrok restarts);
+  // old rows with a full absolute URL are left as-is.
   static String mediaUrl(String url) {
     final absoluteUrl = url.startsWith('http://') || url.startsWith('https://')
         ? url
@@ -149,19 +134,12 @@ class ApiService {
     throw Exception('Failed to fetch profile');
   }
 
-  // Set once by AuthProvider at startup. Invoked whenever any endpoint
-  // reports SESSION_INVALIDATED, regardless of whether the specific call
-  // site catches/rethrows SessionInvalidatedException itself — guarantees a
-  // forced logout happens even from callers (e.g. ChatProvider) that catch
-  // and swallow errors broadly instead of propagating this one specially.
+  // Set once by AuthProvider at startup; invoked on SESSION_INVALIDATED from any
+  // endpoint, so a forced logout happens even from callers that swallow errors broadly.
   static void Function(String message)? onSessionInvalidated;
 
-  // Checks whether a non-200 response is specifically the backend telling us
-  // this token is no longer the active session (see auth.middleware.ts),
-  // e.g. because the account logged in on another device. Throws
-  // SessionInvalidatedException so callers (AuthProvider) can distinguish
-  // this from an ordinary failed request and force a local logout instead of
-  // just showing a generic error.
+  // Checks whether a 401 is specifically SESSION_INVALIDATED (see auth.middleware.ts)
+  // and throws SessionInvalidatedException so AuthProvider can force a local logout.
   static void _throwIfSessionInvalidated(http.Response response) {
     if (response.statusCode != 401) return;
     try {
@@ -253,7 +231,7 @@ class ApiService {
   static Future<void> sendInvite(String recipientId) async {
     final token = await StorageService.getToken();
     final response = await http.post(
-      Uri.parse('$baseUrl/invites'), // Matches backend router.post('/')
+      Uri.parse('$baseUrl/invites'),
       headers: {
         'Content-Type': 'application/json',
         ..._ngrokHeader,
@@ -261,7 +239,7 @@ class ApiService {
       },
       body: jsonEncode({
         'receiverId': recipientId
-      }), // Matches req.body.receiverId in controller
+      }),
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
@@ -273,7 +251,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getInvitations() async {
     final token = await StorageService.getToken();
     final response = await http.get(
-      Uri.parse('$baseUrl/invites'), // Matches backend router.get('/')
+      Uri.parse('$baseUrl/invites'),
       headers: {
         'Content-Type': 'application/json',
         ..._ngrokHeader,

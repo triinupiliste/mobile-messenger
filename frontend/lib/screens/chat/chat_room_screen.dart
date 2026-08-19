@@ -20,10 +20,8 @@ import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../home/home_screen.dart';
 
-// Thin wrapper that scopes a fresh MessageProvider to this specific chat
-// room (created here, not registered globally in main.dart) — message state
-// is only ever needed while this one screen is open, so it's created when
-// the screen opens and disposed automatically when it closes.
+// Thin wrapper that scopes a fresh MessageProvider to this specific chat room,
+// created and disposed with the screen rather than registered globally.
 class ChatRoomScreen extends StatelessWidget {
   final String chatId;
   final String contactId;
@@ -77,14 +75,9 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
   bool _showJumpToLatestButton = false;
   Map<String, dynamic>? _replyingTo;
 
-  // Stored so dispose() can unregister exactly this callback — without this,
-  // reopening the same chat repeatedly stacks duplicate listeners on the
-  // shared socket singleton, which stops new events from reliably reaching
-  // the currently-visible screen (an earlier, already-disposed listener can
-  // throw and prevent later listeners for the same event from running).
+  // Stored so dispose() can unregister exactly these callbacks rather than
+  // leaking listeners on the shared socket singleton.
   late final void Function(dynamic) _onErrorFeedback;
-  // Same reasoning as _onErrorFeedback: stored so dispose() removes exactly
-  // this listener rather than leaking one on the shared socket singleton.
   late final void Function(dynamic) _onFriendRemoved;
 
   @override
@@ -115,9 +108,8 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     };
     SocketService.on(SocketEvents.errorFeedback, _onErrorFeedback);
 
-    // If the other person removes us as a friend while we're sitting in
-    // this very chat, don't leave us looking at a conversation that no
-    // longer exists for us — bounce back to the chat list immediately.
+    // If the other person removes us as a friend while we're in this chat, bounce
+    // back to the chat list instead of leaving a dead conversation on screen.
     _onFriendRemoved = (data) {
       if (!mounted) return;
       final removedChatId = data['chatId']?.toString();
@@ -138,11 +130,8 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     _itemPositionsListener.itemPositions.addListener(_handleItemPositionsChanged);
   }
 
-  // Reacts to MessageProvider changes with the imperative, UI-only side
-  // effects that used to live directly inside the socket listeners: jumping
-  // to the first unread message once history finishes loading, auto-scrolling
-  // to the bottom when a new message is appended, and recomputing whether
-  // the "jump to latest" pill should show.
+  // Reacts to MessageProvider changes: jumps to the first unread message once
+  // history loads, auto-scrolls on new messages, and recomputes the "jump to latest" pill.
   void _onMessagesChanged() {
     final isLoadingHistory = _messageProvider.isLoadingHistory;
     if (_lastLoadingHistory && !isLoadingHistory) {
@@ -168,10 +157,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     final lastVisibleIndex = positions.map((p) => p.index).reduce((a, b) => a > b ? a : b);
 
     // Only show the pill when an unread message from the other participant is
-    // still hidden below the current viewport — not just whenever we've
-    // scrolled away from the very bottom. Once a message has been read
-    // (locally, or already marked read in a previous visit to this chat),
-    // it no longer counts, so the pill won't reappear for old, read history.
+    // still hidden below the viewport, not just whenever scrolled away from the bottom.
     final hasUnreadBelow = messages.asMap().entries.any((entry) =>
         entry.key > lastVisibleIndex &&
         entry.value['sender_id'] != _messageProvider.currentUserId &&
@@ -197,25 +183,20 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     final daysAgo = today.difference(messageDay).inDays;
 
     if (daysAgo <= 0) {
-      // Sent today: time only.
       return time;
     } else if (daysAgo == 1) {
-      // Sent yesterday.
       return 'Yesterday $time';
     } else if (daysAgo < 7) {
-      // Sent within the last week: day of week + time, e.g. "Mon 14:32".
       return '${DateFormat('EEE').format(local)} $time';
     } else {
-      // Older than a week: date + time, e.g. "14 Aug 14:32". The year is only
-      // included when the message isn't from the current year.
+      // Year is only included when the message isn't from the current year.
       final datePattern = local.year == now.year ? 'd MMM' : 'd MMM yyyy';
       return '${DateFormat(datePattern).format(local)} $time';
     }
   }
 
-  // Jumps straight to the first unread message (from the other participant) so the
-  // user lands right where they left off, instead of always landing at the bottom.
-  // If everything is already read, it lands on the last message like normal.
+  // Jumps to the first unread message so the user lands where they left off;
+  // if everything is already read, lands on the last message like normal.
   void _jumpToInitialPosition() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final messages = _messageProvider.messages;
@@ -227,9 +208,8 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
           m['is_deleted'] != true);
 
       if (firstUnreadIndex == -1) {
-        // The sentinel item (index == messages.length) has ~zero height, so
-        // aligning its top edge to the bottom of the viewport (alignment 1.0)
-        // is equivalent to flushing the real last message against the bottom.
+        // The sentinel item (index == messages.length) has ~zero height, so aligning
+        // its top to the viewport's bottom is equivalent to flushing the last message down.
         _itemScrollController.jumpTo(index: messages.length, alignment: 1.0);
       } else {
         _itemScrollController.jumpTo(index: firstUnreadIndex, alignment: 0.0);
@@ -237,23 +217,12 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     });
   }
 
-  // Jumps to the latest message — used when a new message arrives (sent or
-  // received) while the chat is already open.
-  //
-  // Note: this intentionally uses jumpTo() instead of the animated scrollTo().
-  // scrollTo() estimates the target item's position before it has actually
-  // been laid out (since it was just inserted), animates towards that
-  // estimate, then corrects once the real size is known — which shows up as
-  // a visible "scroll then snap back" glitch that can hide the newest
-  // message. jumpTo() performs the same estimate+correct internally but
-  // instantly, so any correction is imperceptible.
-  //
-  // We target the sentinel item (index == messages.length, ~zero height)
-  // rather than the last message itself: alignment positions an item's TOP
-  // edge, so aligning the real last message's top to the viewport's bottom
-  // (alignment 1.0) would push almost the whole bubble off-screen. Aligning
-  // the near-zero-height sentinel's top to the bottom instead flushes the
-  // real content's bottom edge against the viewport's bottom, as intended.
+  // Jumps to the latest message when a new one arrives while the chat is open.
+  // Uses jumpTo() instead of scrollTo(): scrollTo() animates toward an estimated
+  // position for the not-yet-laid-out new item and visibly "snaps back" once the
+  // real size is known, whereas jumpTo() corrects instantly. Targets the sentinel
+  // item (index == messages.length) since aligning the real last message's top
+  // edge to the viewport bottom would push most of the bubble off-screen.
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final messages = _messageProvider.messages;
@@ -312,9 +281,6 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     _messageController.clear();
   }
 
-  // Re-sends a message that previously failed (e.g. connection dropped, or
-  // the server rejected it), reusing the same tempId so the retried send
-  // still replaces this same bubble once confirmed.
   void _retryMessage(String tempId) {
     _messageProvider.retryMessage(tempId);
   }
@@ -344,9 +310,8 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       ),
     );
 
-    // The dialog's TextField held focus while open; without explicitly
-    // unfocusing, focus bounces back to the chat's message input field once
-    // the dialog closes, popping the keyboard back up.
+    // Without this, focus bounces back to the message input and reopens the
+    // keyboard once the dialog closes.
     FocusManager.instance.primaryFocus?.unfocus();
 
     if (newContent == null || newContent.isEmpty || newContent == currentContent) return;
@@ -373,8 +338,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       ),
     );
 
-    // Same as _editMessage: prevent focus from bouncing back to the message
-    // input field and reopening the keyboard once this dialog closes.
+    // Same as _editMessage: prevent focus bouncing back and reopening the keyboard.
     FocusManager.instance.primaryFocus?.unfocus();
 
     if (confirmed != true) return;
@@ -418,12 +382,8 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       if (choice == 'image') {
         pickedFile = await picker.pickImage(source: source);
       } else {
-        // Cap recording length as a sanity bound on upload size/time — actual
-        // compression now happens server-side (see
-        // backend/src/utils/video.util.ts) using ffmpeg, since the on-device
-        // video_compress plugin proved unreliable (silent hangs, broken
-        // output paths on some devices/OS versions). A minute of typical
-        // phone video comfortably fits within the server's raw upload limit.
+        // Actual compression happens server-side via ffmpeg (video_compress plugin
+        // proved unreliable); cap recording length as a sanity bound on upload size.
         pickedFile = await picker.pickVideo(
           source: source,
           maxDuration: const Duration(minutes: 1),
@@ -437,11 +397,9 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       final file = File(pickedFile.path);
       final fileSizeInMB = await file.length() / (1024 * 1024);
 
-      // Videos are compressed server-side after upload, so they're only
-      // rejected here if they're too large to even attempt uploading (the
-      // server enforces the real 20MB-after-compression limit and returns a
-      // clear error if a clip still doesn't fit). Non-video media isn't
-      // compressed, so the 20MB limit is enforced directly on-device.
+      // Videos are compressed server-side after upload (server enforces the real
+      // 20MB-after-compression limit); non-video media isn't compressed, so 20MB
+      // is enforced directly here.
       if (mediaKind == 'video' ? fileSizeInMB > 150 : fileSizeInMB > 20) {
         if (mounted) {
           final message = mediaKind == 'video'
@@ -454,9 +412,6 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
 
       await _uploadAndSendMedia(file, mediaKind);
     } catch (e) {
-      // Surface anything unexpected (e.g. a picker/file-system error) instead
-      // of leaving the user staring at a picker that closed with nothing
-      // visibly happening.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to prepare $mediaKind: ${e.toString().replaceFirst('Exception: ', '')}')),
@@ -588,7 +543,6 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
     );
   }
 
-  // Audio recording toggle method
   Future<void> _toggleRecording() async {
     if (!_isRecording) {
       await _audioService.startRecording();
@@ -683,7 +637,6 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
       ),
       body: Column(
         children: [
-          // Message List View
           Expanded(
             child: Stack(
               children: [
@@ -710,9 +663,8 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                               final bool isMe = currentUserId != null && msg['sender_id'] == currentUserId;
                               final bool isDeleted = msg['is_deleted'] ?? false;
                               final String status = msg['status'] ?? 'sent';
-                              // A message that hasn't been confirmed by the server yet
-                              // (still sending, or failed) has no real id — editing or
-                              // deleting it doesn't make sense until it's confirmed.
+                              // A message that hasn't been confirmed by the server yet has no
+                              // real id — editing/deleting it doesn't make sense until confirmed.
                               final bool isConfirmed = status != 'sending' && status != 'failed';
 
                               return MessageBubble(
@@ -849,7 +801,6 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
               ),
             ),
 
-          // Message Input Bar
           Container(
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
             decoration: BoxDecoration(

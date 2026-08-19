@@ -13,9 +13,7 @@ class ChatProvider with ChangeNotifier {
   bool _socketListenerAttached = false;
   String? _currentUserId;
 
-  // Tracks a chat that's been swiped-to-delete but is still within its
-  // "Undo" window — removed from the visible list immediately, only
-  // persisted to the server once the timer fires without being undone.
+  // Chat swiped-to-delete but still within its "Undo" window; only persisted once the timer fires.
   ChatModel? _pendingDeleteChat;
   int? _pendingDeleteIndex;
   Timer? _pendingDeleteTimer;
@@ -35,9 +33,7 @@ class ChatProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // The socket may not have been initialized yet the first time this ran
-    // (e.g. right at app startup, before login finishes connecting it) —
-    // retry attaching here so live updates start working as soon as it is.
+    // Retry attaching in case the socket wasn't ready yet at app startup.
     _initGlobalSocketListener();
     unawaited(_ensureCurrentUserId());
 
@@ -46,10 +42,7 @@ class ChatProvider with ChangeNotifier {
       _chats = data.map((json) => ChatModel.fromJson(json)).toList();
       _sortChats();
 
-      // The server is the source of truth for mute state (it's what actually
-      // suppresses push notifications). Re-seed the in-memory cache every time
-      // the list loads so the mute/unmute UI reflects reality instead of
-      // resetting to "unmuted" after an app restart.
+      // Re-seed the mute cache from the server so it survives app restarts.
       for (final chat in _chats) {
         NotificationSettingsService.setChatMuted(chat.chatId, chat.isMuted);
       }
@@ -61,12 +54,11 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Mandatory Requirement: Sort chat list by the time of the last message received or sent
   void _sortChats() {
     _chats.sort((a, b) {
       final timeA = a.lastMessageTime ?? DateTime(2000);
       final timeB = b.lastMessageTime ?? DateTime(2000);
-      return timeB.compareTo(timeA); // Newest first
+      return timeB.compareTo(timeA);
     });
   }
 
@@ -83,16 +75,13 @@ class ChatProvider with ChangeNotifier {
   // Listen globally for incoming messages to update the chat list preview and sorting
   void _initGlobalSocketListener() {
     if (_socketListenerAttached) return;
-    // Ensure socket is initialized, then listen for updates
     try {
       SocketService.socket.on(SocketEvents.receiveMessage, (data) {
         final chatId = data['chat_id'] ?? data['chatId'];
         final index = _chats.indexWhere((c) => c.chatId == chatId);
         final senderId = data['sender_id']?.toString();
         final isFromMe = _currentUserId != null && senderId == _currentUserId;
-        // If this chat is the one currently open on screen, its messages are
-        // already visible live there and get marked read — don't count them
-        // as unread on the list.
+        // If this chat is open on screen it's already marked read, so don't count it as unread.
         final chatIsActive = ActiveChatTracker.isChatActive(chatId?.toString() ?? '');
 
         if (index != -1) {
@@ -108,18 +97,12 @@ class ChatProvider with ChangeNotifier {
                 ? DateTime.parse(data['created_at']) 
                 : DateTime.now(),
             lastMessageSenderId: data['sender_id'],
-            // Bump the unread badge/bold state immediately when a message
-            // arrives from the other person while its chat isn't open. If
-            // the chat is open right now, it's immediately visible/read (and
-            // the chat room screen tells the backend so too), so force it
-            // back to 0 instead of leaving a stale count from before it was
-            // opened.
+            // Force 0 while the chat is open (already read); otherwise bump if not from me.
             unreadCount: chatIsActive
                 ? 0
                 : (!isFromMe ? existing.unreadCount + 1 : existing.unreadCount),
-            // A new message un-archives the chat (server does the same),
-            // regardless of who sent it or who had archived it.
-            isArchived: false,
+            isArchived: false, // a new message un-archives the chat, matching the server
+
             isMuted: existing.isMuted,
           );
           _sortChats();
@@ -130,8 +113,7 @@ class ChatProvider with ChangeNotifier {
         }
       });
 
-      // The other participant removed us as a friend — the chat disappears
-      // from our list too, live, without needing to reopen the screen.
+      // The other participant removed us as a friend; drop the chat live.
       SocketService.socket.on(SocketEvents.friendRemoved, (data) {
         final chatId = data['chatId'];
         final removed = _chats.any((c) => c.chatId == chatId);
@@ -140,19 +122,14 @@ class ChatProvider with ChangeNotifier {
         notifyListeners();
       });
 
-      // The other person responded to an invite we sent. If they accepted,
-      // a chat now exists (or was revived) on the backend — refresh so it
-      // shows up immediately instead of only appearing after the list is
-      // reloaded by navigating away and back.
+      // If an invite we sent was accepted, a chat now exists on the backend; refresh to show it.
       SocketService.socket.on(SocketEvents.inviteResponded, (data) {
         if (data['status'] == 'accepted') {
           fetchChats();
         }
       });
 
-      // A contact changed their username/avatar — patch it into any chat we
-      // have with them so it updates live everywhere it's shown (chat list,
-      // avatars) instead of only after the next fetchChats().
+      // A contact changed their username/avatar; patch it into any chat we have with them.
       SocketService.socket.on(SocketEvents.profileUpdated, (data) {
         final userId = extractUserId(data, 'userId');
         if (userId == null) return;
@@ -188,8 +165,7 @@ class ChatProvider with ChangeNotifier {
     final previousValue = _chats[index].isArchived;
     final newValue = !previousValue;
 
-    // Optimistically update the UI, then persist to the server so the
-    // archived state survives refreshes/restarts. Roll back on failure.
+    // Optimistic update, rolled back on failure.
     _chats[index].isArchived = newValue;
     notifyListeners();
 
@@ -202,8 +178,7 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  // Removes the chat from the list right away for a snappy swipe-to-delete
-  // UX, but only tells the server once the undo window has elapsed.
+  // Removes from the list immediately; only tells the server once the undo window elapses.
   void deleteChat(String chatId) {
     final index = _chats.indexWhere((c) => c.chatId == chatId);
     if (index == -1) return;
@@ -245,10 +220,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Ends the friendship: removes the chat from the list immediately (for
-  // both participants — the backend hides it and notifies the other user's
-  // client too) with no undo, since this is already behind a confirmation
-  // dialog. Message history is preserved server-side in case they reconnect.
+  // Ends the friendship; no undo since this is already behind a confirmation dialog.
   Future<void> removeFriend(String chatId) async {
     final index = _chats.indexWhere((c) => c.chatId == chatId);
     final removedChat = index != -1 ? _chats[index] : null;

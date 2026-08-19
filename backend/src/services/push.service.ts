@@ -1,14 +1,8 @@
 import admin from 'firebase-admin';
 import fs from 'fs';
 
-// Firebase Admin needs a service account credential to send pushes. Locally,
-// docker-compose mounts backend/secrets and points GOOGLE_APPLICATION_CREDENTIALS
-// at the mounted JSON file. That file is gitignored (it's a credential) and
-// never reaches managed hosts like Railway, which can't mount a local file
-// anyway — so on Railway the credential is instead supplied as a
-// base64-encoded env var (FIREBASE_SERVICE_ACCOUNT_BASE64) and decoded here.
-// Until one of the two is configured, push sending is simply disabled
-// (no-op) instead of crashing the server.
+// Locally uses GOOGLE_APPLICATION_CREDENTIALS (mounted file); Railway can't
+// mount files, so it uses a base64 env var instead. Push is a no-op until either is set.
 let pushEnabled = false;
 
 try {
@@ -16,9 +10,8 @@ try {
     const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
     if (base64Credentials) {
-        // Strip characters that commonly sneak in when pasting a long value into
-        // a web UI env var editor (wrapping quotes, trailing newline, or the
-        // value getting soft-wrapped across lines) — all invalid in base64.
+        // Strip characters that commonly sneak in when pasting into a web UI env
+        // editor (quotes, newlines, soft-wraps) — all invalid in base64.
         const cleaned = base64Credentials.trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
         let serviceAccount: unknown;
         try {
@@ -58,21 +51,16 @@ export interface PushPayload {
 }
 
 export class PushService {
-    // Sends a push notification to a single device token. Failures (invalid/
-    // stale token, Firebase not configured, network error, etc.) are logged
-    // and swallowed — a failed push must never break the message/invite flow
-    // that triggered it.
+    // Failures (invalid token, Firebase not configured, network error) are
+    // logged and swallowed — a failed push must never break the triggering flow.
     static async sendToToken(fcmToken: string | null | undefined, payload: PushPayload): Promise<void> {
         if (!pushEnabled || !fcmToken) return;
 
         try {
             await admin.messaging().send({
                 token: fcmToken,
-                // Data-only (no top-level `notification` block) so the OS never
-                // auto-displays this itself — the app always renders it via its
-                // own code, using a stable per-chat notification id. That's what
-                // lets a chat's tray notification actually get cancelled once
-                // it's read, instead of being stuck there until swiped away.
+                // Data-only (no `notification` block) so the app renders it itself with a
+                // stable per-chat id — needed so the tray notification can be cancelled on read.
                 data: {
                     ...payload.data,
                     title: payload.title,

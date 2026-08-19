@@ -22,11 +22,9 @@ const AndroidNotificationChannel _pushChannel = AndroidNotificationChannel(
   importance: Importance.high,
 );
 
-// Shared by both the foreground listener and the background isolate handler
-// below, so a chat's notification always gets the same stable id (letting it
-// be replaced/cancelled later) regardless of which path displayed it. The
-// backend sends data-only messages (no top-level `notification` block) so
-// the OS never auto-displays these itself — this is the only place that does.
+// Shared by the foreground listener and background isolate handler so a chat's
+// notification always gets the same stable id. Backend sends data-only messages
+// (no top-level `notification` block), so this is the only place that displays them.
 Future<void> _displayMessageNotification(
   FlutterLocalNotificationsPlugin plugin,
   Map<String, dynamic> data,
@@ -41,10 +39,8 @@ Future<void> _displayMessageNotification(
   final body = data['body'] as String?;
   if (title == null || body == null) return;
 
-  // Use a stable per-chat id (rather than a per-message hash) so a newer
-  // message for the same chat replaces the previous tray notification
-  // instead of stacking, and so it can be cancelled later by chat id (e.g.
-  // once the user reads it, whether via the app or the notification).
+  // Stable per-chat id so a newer message replaces the previous tray notification
+  // instead of stacking, and can be cancelled later by chat id.
   final notificationId =
       data['type'] == 'message' && chatId != null ? _notificationIdForChat(chatId) : data.hashCode;
 
@@ -64,12 +60,8 @@ Future<void> _displayMessageNotification(
   );
 }
 
-// Must be a top-level (or static) function — FCM runs this in a separate
-// background isolate when a push arrives while the app is backgrounded or
-// fully terminated. Since the backend now sends data-only messages, nothing
-// gets shown automatically — this has to display it itself, using its own
-// plugin instance since it doesn't share memory with the main isolate that
-// PushNotificationService normally runs in.
+// Must be top-level/static — FCM runs this in a separate background isolate with
+// its own plugin instance when a push arrives while the app is backgrounded/terminated.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -98,11 +90,8 @@ class PushNotificationService {
   static bool _initialized = false;
 
   static Future<void> init() async {
-    // One-time plugin/channel/listener setup only — must NOT gate token
-    // registration below, otherwise switching accounts on the same device
-    // (without a full app restart) would leave the backend's fcm_token
-    // pointing at whichever user logged in first, and the new user would
-    // never receive push notifications.
+    // One-time setup only — must not gate token registration below, otherwise switching
+    // accounts on the same device would leave the backend's fcm_token on the old user.
     if (!_initialized) {
       _initialized = true;
 
@@ -124,15 +113,9 @@ class PushNotificationService {
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_pushChannel);
 
-      // If the app was fully terminated, tapping our tray notification just
-      // cold-starts it fresh — `onDidReceiveNotificationResponse` above only
-      // fires while the plugin's engine is already alive (foreground or
-      // backgrounded-but-running), and `getInitialMessage()` below never
-      // recognizes these taps either, since these are data-only FCM messages
-      // with no native `notification` payload, so Android/FCM never tags the
-      // launch as notification-caused. `getNotificationAppLaunchDetails()` is
-      // the only API that can tell us this cold start was caused by tapping
-      // one of our own locally-shown notifications, and hand back its payload.
+      // These are data-only FCM messages, so a cold start from tapping our tray
+      // notification isn't recognized by onDidReceiveNotificationResponse or
+      // getInitialMessage() — getNotificationAppLaunchDetails() is the only API that can.
       final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
       final launchPayload = launchDetails?.notificationResponse?.payload;
       if (launchDetails?.didNotificationLaunchApp == true && launchPayload != null) {
@@ -141,13 +124,11 @@ class PushNotificationService {
 
       messaging.onTokenRefresh.listen((token) => ApiService.registerFcmToken(token));
 
-      // Foreground: Android/FCM won't auto-show a system banner while the app is
-      // open, so we display it ourselves — unless it's for the chat the user is
-      // already looking at (its messages are already visible live on screen).
+      // Android/FCM won't auto-show a system banner while the app is foregrounded,
+      // so we display it ourselves unless it's for the chat already open on screen.
       FirebaseMessaging.onMessage.listen(_showForegroundNotification);
 
-      // The app was backgrounded (not terminated) and the user tapped the
-      // system notification to bring it back to the foreground.
+      // Backgrounded (not terminated) and the user tapped the system notification.
       FirebaseMessaging.onMessageOpenedApp.listen((message) => _handleTap(message.data));
 
       // The app was fully terminated and this notification tap launched it.
@@ -157,9 +138,8 @@ class PushNotificationService {
       }
     }
 
-    // Always (re-)register the current device's FCM token against whichever
-    // user is now logged in — this must run on every login, not just the
-    // first one for this app process.
+    // Always (re-)register the current device's FCM token — must run on every
+    // login, not just the first one for this app process.
     await _registerToken();
   }
 
@@ -179,9 +159,7 @@ class PushNotificationService {
     _displayMessageNotification(_localNotifications, message.data);
   }
 
-  // Dismisses the tray notification for a chat, e.g. once its messages have
-  // been read — whether that happened by tapping the notification itself or
-  // by opening the chat some other way through the app.
+  // Dismisses the tray notification for a chat, e.g. once its messages have been read.
   static Future<void> cancelForChat(String chatId) async {
     await _localNotifications.cancel(_notificationIdForChat(chatId));
   }

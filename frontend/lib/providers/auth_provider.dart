@@ -15,9 +15,7 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
   bool get emailVerificationRequired => _emailVerificationRequired;
-  // Non-null right after this device was force-logged-out because the
-  // account signed in on another device — LoginScreen shows it once (as a
-  // SnackBar) then clears it via clearForceLogoutMessage().
+  // Set when another device force-logs this one out; LoginScreen shows it once then clears it.
   String? get forceLogoutMessage => _forceLogoutMessage;
 
   void clearLoginFeedback() {
@@ -33,9 +31,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   AuthProvider() {
-    // Fires whenever any REST call reports SESSION_INVALIDATED (fallback for
-    // when this device isn't currently socket-connected to receive the
-    // real-time force_logout event below).
+    // Fallback for when the socket isn't connected to receive the real-time force_logout event.
     ApiService.onSessionInvalidated = _handleForcedLogout;
     checkAuthStatus();
   }
@@ -48,18 +44,13 @@ class AuthProvider with ChangeNotifier {
         await SocketService.initSocket();
         await PushNotificationService.init();
         _listenForForcedLogout();
-        // A stored token only proves it was valid at some point — confirm
-        // with the server that it's still the active session (it may have
-        // been invalidated by a login on another device while this device
-        // was closed/offline) before trusting it.
+        // Confirm the stored token's session wasn't invalidated while this device was offline.
         try {
           await ApiService.getProfile();
         } on SessionInvalidatedException catch (e) {
           await _handleForcedLogout(e.message);
         } catch (_) {
-          // Network/server error unrelated to session validity — don't log
-          // the user out just because the profile check failed to reach
-          // the server; screens surface connectivity issues on their own.
+          // Ignore unrelated network errors; don't log out over a failed connectivity check.
         }
       }
     } catch (e) {
@@ -69,10 +60,7 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Listens for the server telling this device it's been signed out because
-  // the account just logged in elsewhere. Safe to call repeatedly: each
-  // initSocket() call creates a brand new socket instance, so this just
-  // attaches the listener to whichever socket is currently active.
+  // Safe to call repeatedly: attaches to whichever socket is currently active.
   void _listenForForcedLogout() {
     SocketService.on(SocketEvents.forceLogout, (data) {
       final message = (data is Map && data['message'] is String)
@@ -87,6 +75,9 @@ class AuthProvider with ChangeNotifier {
     _isAuthenticated = false;
     _forceLogoutMessage = message;
     notifyListeners();
+
+    // Swapping the root widget alone doesn't pop screens already pushed on top of it.
+    PushNotificationService.navigatorKey.currentState?.popUntil((route) => route.isFirst);
 
     try {
       await StorageService.clearToken();
@@ -118,7 +109,6 @@ class AuthProvider with ChangeNotifier {
     try {
       final res = await ApiService.login(email, password);
       if (res['token'] != null) {
-        // CRITICAL: Save the token securely so it persists across app restarts!
         await StorageService.setToken(res['token']);
         await SocketService.initSocket();
         await PushNotificationService.init();
@@ -167,8 +157,7 @@ class AuthProvider with ChangeNotifier {
       }
       return null;
     } catch (e) {
-      debugPrint(
-          'Registration Exception: $e'); // <-- This prints the exact cause in your terminal
+      debugPrint('Registration Exception: $e');
       return 'Network error occurred during registration: $e';
     }
   }

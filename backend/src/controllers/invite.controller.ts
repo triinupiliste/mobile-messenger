@@ -35,9 +35,8 @@ export class InviteController {
             const invite = await InviteRepository.createInvite(senderId, receiverId);
             res.status(201).json({ message: 'Chat invite sent successfully.', invite });
 
-            // Let the receiver's Invites screen update live if it's open, instead
-            // of only refreshing the next time they open/re-visit it. Emit the
-            // enriched shape (with sender username/avatar) that the screen expects.
+            // Let the receiver's Invites screen update live; emit the enriched shape
+            // (with sender username/avatar) that the screen expects.
             const enrichedInvite = await InviteRepository.getIncomingInviteById(invite.id);
             getIO()?.to(receiverId).emit('new_invite', enrichedInvite ?? invite);
 
@@ -93,9 +92,8 @@ export class InviteController {
 
             const updated = await InviteRepository.updateInviteStatus(inviteId, status);
 
-            // If accepted, create a chat channel between sender and receiver —
-            // or, if they were friends before and later unfriended each other,
-            // revive their old chat (and its history) instead of starting fresh.
+            // If accepted, create a new chat — or revive the old one (with history)
+            // if they'd previously unfriended each other.
             if (status === 'accepted') {
                 const existingChatId = await ChatRepository.findChatBetweenUsers(invite.sender_id, invite.receiver_id);
                 if (existingChatId) {

@@ -51,9 +51,8 @@ export class MediaController {
                 // input format, so reflect that in the stored filename.
                 originalName = `${path.parse(originalName).name}.mp4`;
             } catch (error) {
-                // Fall back to storing the original, uncompressed file rather
-                // than failing the whole send — the size check below still
-                // protects against anything too large to store.
+                // Fall back to the original file rather than failing the send — the size
+                // check below still guards against anything too large.
                 console.error('Video compression failed, storing original file instead:', error);
                 buffer = file.buffer;
             }
@@ -72,20 +71,15 @@ export class MediaController {
         const encrypted = encryptBuffer(buffer);
         await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), encrypted);
 
-        // Stored/returned as a path relative to this server, not a full URL
-        // with the host baked in — the host (e.g. an ngrok tunnel) can change
-        // between restarts, which would otherwise turn every previously
-        // uploaded avatar/media URL into a dead link. The client resolves
-        // this against whatever the current server address is when it
-        // actually requests the file.
+        // Returned as a relative path, not a full URL — the host (e.g. an ngrok
+        // tunnel) can change between restarts, which would break stored URLs otherwise.
         const url = `/uploads/${filename}`;
 
         res.status(201).json({ url });
     }
 
-    // Decrypts a stored media file on the fly and streams it back. This replaces
-    // serving the /uploads directory directly via express.static, since the files
-    // on disk are now encrypted and can no longer be sent as-is.
+    // Decrypts a stored media file on the fly and streams it back (replaces
+    // serving /uploads via express.static now that files are encrypted at rest).
     static async getMedia(req: Request, res: Response): Promise<void> {
         const filename = req.params.filename;
 
@@ -104,11 +98,8 @@ export class MediaController {
 
             res.setHeader('Content-Type', contentType);
             res.setHeader('Cache-Control', 'private, max-age=86400');
-            // Required for video seeking/thumbnail extraction: Android's
-            // MediaMetadataRetriever (used by the video_thumbnail plugin) and video
-            // players need to be able to fetch specific byte ranges of a video to
-            // jump to a frame or its metadata atoms, rather than only reading
-            // sequentially from the start.
+            // Required for video seeking/thumbnail extraction — Android's
+            // MediaMetadataRetriever and video players need to fetch specific byte ranges.
             res.setHeader('Accept-Ranges', 'bytes');
 
             const rangeHeader = req.headers.range;

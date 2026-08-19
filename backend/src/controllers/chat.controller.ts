@@ -54,9 +54,8 @@ export class ChatController {
         }
     }
 
-    // Ends the friendship: hides the chat from both participants' lists, but
-    // (unlike a manual chat delete) leaves the message history intact so it
-    // can reappear if they ever add each other back and get accepted again.
+    // Ends the friendship: hides the chat for both participants, but (unlike a
+    // manual delete) keeps history intact in case they reconnect later.
     static async removeFriend(req: Request, res: Response): Promise<string | void> {
         try {
             const userId = (req as any).user.userId;

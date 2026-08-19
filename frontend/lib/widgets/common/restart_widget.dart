@@ -1,18 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Wraps the app so it can be told to rebuild itself from the top down —
-/// used after changing the app theme so every currently-built screen,
-/// including ones already pushed onto the navigation stack, picks up the new
-/// colors. Takes a builder (rather than a plain child widget) specifically
-/// so each rebuild constructs a genuinely new widget instance: Flutter skips
-/// rebuilding a subtree entirely if the exact same widget instance is
-/// returned again (its "identical widget" fast path), which would make
-/// restartApp() a no-op if we just stored and returned a single fixed
-/// `child` widget. This also deliberately avoids changing any Keys (unlike a
-/// hard reset that recreates the subtree from scratch with a brand new key)
-/// so the Navigator's state is preserved — the user stays on whatever
-/// screen they're on (e.g. Settings) instead of being bounced back to the
-/// home screen and losing the route.
+/// Wraps the app so it can be told to rebuild itself from the top down, used after
+/// changing the app theme so every currently-built screen picks up the new colors.
+/// Takes a builder rather than a plain child so each rebuild constructs a genuinely
+/// new widget instance (Flutter skips rebuilding identical widget instances). Doesn't
+/// change Keys, so Navigator state is preserved and the user stays on their screen.
 class RestartWidget extends StatefulWidget {
   final WidgetBuilder builder;
 

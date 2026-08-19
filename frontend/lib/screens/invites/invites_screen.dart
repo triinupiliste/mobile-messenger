@@ -7,10 +7,8 @@ import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 
 class InvitesScreen extends StatefulWidget {
-  // When true (e.g. opened by tapping an invite push notification), this
-  // screen marks incoming invites as seen as soon as it loads, instead of
-  // relying on the bottom-nav tap handler (which only runs for the
-  // persistent IndexedStack-embedded instance).
+  // When true, marks incoming invites as seen as soon as this screen loads,
+  // instead of relying on the bottom-nav tap handler.
   final bool markSeenOnOpen;
 
   const InvitesScreen({super.key, this.markSeenOnOpen = false});
@@ -88,7 +86,6 @@ class InvitesScreenState extends State<InvitesScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary))
             : TabBarView(
                 children: [
-                  // Incoming Tab
                   incoming.isEmpty
                       ? const EmptyState(
                           icon: Icons.mail_outline_rounded,
@@ -143,7 +140,6 @@ class InvitesScreenState extends State<InvitesScreen> {
                             );
                           },
                         ),
-                  // Outgoing Tab
                   outgoing.isEmpty
                       ? const EmptyState(
                           icon: Icons.send_outlined,
@@ -177,7 +173,7 @@ class InvitesScreenState extends State<InvitesScreen> {
                                         color: AppColors.textSecondary)),
                                 trailing: Chip(
                                   label: Text(
-                                      (invite['status'] ?? 'pending')
+                                      (invite['status'] ?? 'Pending')
                                           .toString(),
                                       style: TextStyle(
                                           fontSize: 12, color: Colors.white)),

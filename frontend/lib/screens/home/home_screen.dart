@@ -11,10 +11,8 @@ import '../profile/profile_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  // Lets screens pushed on top of HomeScreen (e.g. ChatRoomScreen) switch
-  // back to a specific tab once popped — e.g. after removing a friend, we
-  // want the user to land back on the Chats tab specifically, regardless of
-  // which tab was active when they navigated into the chat.
+  // Lets screens pushed on top of HomeScreen (e.g. ChatRoomScreen) switch back to a
+  // specific tab once popped, regardless of which tab was active before navigating away.
   static final GlobalKey<HomeScreenState> homeKey = GlobalKey<HomeScreenState>();
 
   @override
@@ -38,18 +36,10 @@ class HomeScreenState extends State<HomeScreen> {
     context.read<ChatProvider>().fetchChats();
   }
 
-  // Note: this is a getter (not a `late final` field computed once) so it
-  // constructs fresh widget instances on every build. IndexedStack's
-  // Element.updateChild skips rebuilding a child entirely if the exact same
-  // widget instance is passed again — with a fixed field (and `const`
-  // constructors, which Dart canonicalizes to one shared instance regardless
-  // of how many times they're constructed), that meant these tabs (Profile's
-  // avatar/logout button, Search's icon, etc.) never picked up theme changes
-  // made via RestartWidget while sitting in the background, only updating
-  // once something inside them called setState directly. `const` is
-  // deliberately dropped below for the same reason. None of these widgets
-  // have (or need) Keys, so recreating them each build still preserves each
-  // tab's State via the standard same-type/same-slot element matching.
+  // A getter (not a field) so it builds fresh widget instances each time: IndexedStack
+  // skips rebuilding a child if the exact same widget instance is passed again, which
+  // would stop background tabs from picking up theme changes from RestartWidget.
+  // `const` is deliberately omitted for the same reason.
   List<Widget> get _screens => [
     ChatListScreen(),
     InvitesScreen(),

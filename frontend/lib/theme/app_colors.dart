@@ -10,9 +10,8 @@ class AppColors {
   // The lightest tint of the theme, used as the app's background.
   static Color background = _backgroundFor(AppThemeName.sunsetCoral);
 
-  // Whether dark mode is currently active. Toggled from Settings via
-  // applyDarkMode(); everything below reacts to it the same way `primary`
-  // and `background` already react to the accent theme picker.
+  // Toggled from Settings via applyDarkMode(); everything below reacts to it
+  // the same way `primary`/`background` react to the accent theme picker.
   static bool isDark = false;
 
   static Color secondary = _light.secondary;
@@ -25,10 +24,8 @@ class AppColors {
   static Color textPrimary = _light.textPrimary;
   static Color textSecondary = _light.textSecondary;
 
-  // Light neutral border used on cards, bubbles, and input fields throughout
-  // the app (chat bubbles, chat list rows, search field, theme swatches,
-  // the global divider theme, etc.) — kept as one named constant instead of
-  // the same hex literal being copy-pasted at every call site.
+  // Light neutral border used on cards, bubbles, and input fields throughout the app;
+  // kept as one named constant instead of copy-pasting the same hex literal everywhere.
   static Color cardBorder = _light.cardBorder;
 
   // Soft drop shadow shared by low-elevation cards/bubbles (e.g. the chat
@@ -39,10 +36,8 @@ class AppColors {
   // room's message input bar).
   static Color floatingBarShadow = _light.floatingBarShadow;
 
-  // Darkens a color for the gradient endpoints used across primary-colored
-  // buttons/badges/avatars (send button, unread badges, theme swatches,
-  // "isMe" chat bubbles) so every gradient darkens by the same, named amount
-  // instead of a bare `Color.lerp(color, Colors.black, 0.18)!` at each spot.
+  // Darkens a color for gradient endpoints (send button, unread badges, "isMe" bubbles)
+  // so every gradient darkens by the same named amount.
   static Color darken(Color color, [double amount = 0.18]) => Color.lerp(color, Colors.black, amount)!;
 
   static AppThemeName _currentTheme = AppThemeName.sunsetCoral;
@@ -54,9 +49,7 @@ class AppColors {
     background = isDark ? _dark.background : _backgroundFor(theme);
   }
 
-  // Switches every neutral (non-accent) color token between the light and
-  // dark palettes. Called from Settings alongside a RestartWidget rebuild,
-  // the same way applyTheme() swaps the accent color.
+  // Switches every neutral (non-accent) color token between light/dark palettes.
   static void applyDarkMode(bool dark) {
     isDark = dark;
     final palette = dark ? _dark : _light;
@@ -72,9 +65,8 @@ class AppColors {
     errorBorder = palette.errorBorder;
   }
 
-  // Public accessor so UI that needs to show a specific theme's swatch
-  // (e.g. the theme picker in Settings) can reference the same values as
-  // applyTheme() instead of duplicating the hex literals.
+  // So UI needing to show a specific theme's swatch (e.g. Settings theme picker)
+  // can reference the same values as applyTheme() instead of duplicating hex literals.
   static Color primaryFor(AppThemeName theme) => _primaryFor(theme);
 
   static Color _primaryFor(AppThemeName theme) {
@@ -100,9 +92,8 @@ class AppColors {
   }
 }
 
-// A named bundle of the neutral (non-accent) tokens that flip between light
-// and dark mode, so applyDarkMode() can swap them all in one place instead
-// of an easy-to-desync if/else per field.
+// Bundle of the neutral (non-accent) tokens that flip between light/dark mode,
+// so applyDarkMode() can swap them all in one place.
 class _NeutralPalette {
   final Color background;
   final Color secondary;

@@ -163,7 +163,7 @@ class _MessageBubbleState extends State<MessageBubble> {
       icon = Icons.done_all;
     } else if (widget.status == 'read') {
       icon = Icons.done_all;
-      color = Colors.blue.shade400; // Read indicator color
+      color = Colors.blue.shade400;
     } else {
       icon = Icons.check;
     }

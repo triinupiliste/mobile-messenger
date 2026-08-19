@@ -20,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Live validation checks matching testing requirements
   bool get _hasMinLength => _passwordController.text.length >= 8;
   bool get _hasLowercase => _passwordController.text.contains(RegExp(r'[a-z]'));
   bool get _hasUppercase => _passwordController.text.contains(RegExp(r'[A-Z]'));
@@ -48,7 +47,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _passwordController.text.trim(),
     );
 
-    // Guard the async gap right here
     if (!mounted) return;
 
     setState(() {
@@ -57,7 +55,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (error != null) {
       setState(() {
-        _errorMessage = error; // Visual feedback if email/username already taken
+        _errorMessage = error;
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -130,7 +128,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           validator: (value) => value!.isEmpty ? 'Please enter a password' : null,
                         ),
                         const SizedBox(height: 16),
-                        // Password Strength Live Checklist
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(

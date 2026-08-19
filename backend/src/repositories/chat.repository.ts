@@ -7,11 +7,9 @@ export class ChatRepository {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
-            // Create chat entity
             const chatResult = await client.query('INSERT INTO chats DEFAULT VALUES RETURNING id');
             const chatId = chatResult.rows[0].id;
 
-            // Link participants
             await client.query(
                 'INSERT INTO chat_participants (chat_id, user_id) VALUES ($1, $2), ($1, $3)',
                 [chatId, user1Id, user2Id]
@@ -27,10 +25,8 @@ export class ChatRepository {
         }
     }
 
-    // Looks for a chat (chat_participants row pair) that already exists
-    // between these two users, e.g. from before they unfriended each other —
-    // used so re-accepting an invite revives the old chat/history instead of
-    // creating a brand new, empty one.
+    // Looks for a chat that already exists between these users (e.g. from
+    // before they unfriended) so re-accepting an invite revives it instead of creating a new one.
     static async findChatBetweenUsers(user1Id: string, user2Id: string): Promise<string | null> {
         const query = `
             SELECT cp1.chat_id FROM chat_participants cp1
@@ -41,9 +37,8 @@ export class ChatRepository {
         return result.rows[0]?.chat_id || null;
     }
 
-    // Returns the distinct set of "other participant" user ids across every
-    // chat this user is part of (regardless of archived/deleted state) —
-    // used to know who to notify live when this user's profile/avatar changes.
+    // Distinct "other participant" ids across all this user's chats — used to
+    // know who to notify live on profile/avatar changes.
     static async getContactIds(userId: string): Promise<string[]> {
         const query = `
             SELECT DISTINCT other_cp.user_id AS contact_id
@@ -114,10 +109,8 @@ export class ChatRepository {
     }
 
     static async setChatDeletedStatus(chatId: string, userId: string, isDeleted: boolean): Promise<void> {
-        // Deleting also stamps `cleared_at` so the deleter's message history
-        // resets: if they text this contact again, they only see messages sent
-        // from this point forward, while the other participant still sees
-        // everything (matches WhatsApp/Messenger's per-device "delete chat").
+        // Deleting also stamps `cleared_at`, resetting the deleter's history so
+        // they only see messages sent after this point (per-device delete, like WhatsApp).
         const query = isDeleted
             ? `UPDATE chat_participants 
                SET is_deleted = TRUE, cleared_at = NOW() 
@@ -128,11 +121,8 @@ export class ChatRepository {
         await pool.query(query, [chatId, userId]);
     }
 
-    // Un-hides a chat for all participants who'd archived/deleted/unfriended
-    // it — used both when a new message arrives (it should stay hidden only
-    // until the next message) and when a re-accepted invite restores a chat
-    // with a previously-unfriended contact, so the old history reappears
-    // instead of starting fresh.
+    // Un-hides a chat for anyone who'd archived/deleted/unfriended it — used on
+    // new messages and when a re-accepted invite revives an old chat.
     static async reviveForAllParticipants(chatId: string): Promise<void> {
         const query = `
             UPDATE chat_participants 
@@ -141,10 +131,8 @@ export class ChatRepository {
         await pool.query(query, [chatId]);
     }
 
-    // Removing a friend hides their shared chat from both participants' lists
-    // — but, unlike a manual "delete chat", it deliberately leaves `cleared_at`
-    // untouched so the full message history is still there (and visible again
-    // to both) if they ever become friends again.
+    // Hides the shared chat for both participants, but (unlike a manual delete)
+    // leaves `cleared_at` untouched so history reappears if they reconnect.
     static async removeFriendship(chatId: string): Promise<void> {
         const query = `
             UPDATE chat_participants 
@@ -153,9 +141,8 @@ export class ChatRepository {
         await pool.query(query, [chatId]);
     }
 
-    // Used to decide who to push a "new message" notification to: every OTHER
-    // participant in the chat, along with whether THEY have this specific
-    // chat muted and their FCM device token (if any).
+    // Every other participant in the chat, plus their mute state and FCM token
+    // — used to decide who to push a "new message" notification to.
     static async getOtherParticipantsForPush(
         chatId: string,
         excludeUserId: string,

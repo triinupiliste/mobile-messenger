@@ -36,12 +36,8 @@ export function registerChatHandlers(io: Server) {
             if (err) {
                 return next(new Error('Authentication error: Invalid or expired token'));
             }
-            // Reject a token whose embedded session version no longer matches
-            // the account's current one — it belongs to a device that's since
-            // been signed out by a newer login elsewhere (see login() /
-            // auth.middleware.ts for where the version is bumped/checked).
-            // Missing `sv` (tokens issued before this feature existed) is
-            // treated as version 0.
+            // Reject a token whose session version no longer matches — it belongs to a
+            // device signed out by a newer login (see login()/auth.middleware.ts). Missing `sv` = version 0.
             const tokenVersion = typeof decoded.sv === 'number' ? decoded.sv : 0;
             UserRepository.getSessionVersion(decoded.userId).then((currentVersion) => {
                 if (currentVersion === null || currentVersion !== tokenVersion) {
@@ -66,12 +62,10 @@ export function registerChatHandlers(io: Server) {
             console.log(`User ${userId} joined chat room: ${chatId}`);
         });
 
-        // Handle sending messages (Text, Images, Videos, Audio)
         socket.on('send_message', async (data: { chatId: string; content?: string; mediaUrl?: string; mediaType?: any; tempId?: string; replyToId?: string }) => {
             try {
                 const { chatId, content, mediaUrl, mediaType, tempId, replyToId } = data;
                 
-                // Save message to database and encrypt content
                 const savedMessage = await MessageRepository.saveMessage(
                     chatId, 
                     userId, 
@@ -81,9 +75,8 @@ export function registerChatHandlers(io: Server) {
                     replyToId,
                 );
                 
-                // Broadcast the message to all participants in the chat room. tempId is
-                // echoed back (not persisted) so the sender's client can reconcile its
-                // optimistically-rendered message with the confirmed, saved one.
+                // Broadcast to the chat room; tempId is echoed back (not persisted) so the
+                // sender can reconcile its optimistic message with the saved one.
                 io.to(chatId).emit('receive_message', { ...savedMessage, tempId });
 
                 // A new message un-archives/un-deletes the chat for anyone who'd
@@ -116,19 +109,16 @@ export function registerChatHandlers(io: Server) {
                     console.error('Failed to send message push notification:', pushError);
                 }
             } catch (error) {
-                // Echo the tempId back so the sender can immediately mark that
-                // specific pending message as failed instead of waiting for its
-                // client-side send timeout to expire.
+                // Echo tempId back so the sender can mark that message failed immediately,
+                // instead of waiting for its client-side send timeout.
                 socket.emit('error_feedback', { message: 'Failed to send message.', tempId: data.tempId });
             }
         });
 
-        // Handle Typing Indicators (Real-time typing cues)
         socket.on('typing', (data: { chatId: string; isTyping: boolean }) => {
             socket.to(data.chatId).emit('user_typing', { chatId: data.chatId, userId, isTyping: data.isTyping });
         });
 
-        // Handle Message Status Updates (Delivered / Read indicators)
         socket.on('update_message_status', async (data: { messageId: string; chatId: string; status: 'delivered' | 'read' }) => {
             try {
                 await MessageRepository.updateMessageStatus(data.messageId, data.status);
@@ -138,7 +128,6 @@ export function registerChatHandlers(io: Server) {
             }
         });
 
-        // Handle Editing Messages
         socket.on('edit_message', async (data: { messageId: string; chatId: string; newContent: string }) => {
             try {
                 const updatedMessage = await MessageRepository.editMessage(data.messageId, userId, data.newContent);
@@ -152,7 +141,6 @@ export function registerChatHandlers(io: Server) {
             }
         });
 
-        // Handle Deleting Messages
         socket.on('delete_message', async (data: { messageId: string; chatId: string }) => {
             try {
                 const deletedMessage = await MessageRepository.deleteMessage(data.messageId, userId);
@@ -166,7 +154,6 @@ export function registerChatHandlers(io: Server) {
             }
         });
 
-        // Disconnection handler
         socket.on('disconnect', () => {
             console.log(`User disconnected: ${userId}`);
         });

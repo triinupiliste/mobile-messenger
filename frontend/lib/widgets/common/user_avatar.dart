@@ -5,10 +5,8 @@ import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 
 /// Displays a user's uploaded profile picture, or a default initials avatar
-/// (similar to WhatsApp/Slack) when no picture has been set yet, instead of a
-/// generic placeholder icon. The default avatar always uses the app's
-/// current theme's strongest (primary) color, so it stays consistent with
-/// the rest of the UI and updates automatically when the theme changes.
+/// when none has been set. The default avatar uses the app's current theme
+/// color and updates automatically when the theme changes.
 class UserAvatar extends StatelessWidget {
   final String? avatarUrl;
   final String displayName;

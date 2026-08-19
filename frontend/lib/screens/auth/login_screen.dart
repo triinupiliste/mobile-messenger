@@ -24,9 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Show a one-time notice if this screen is showing because the device
-    // was just force-logged-out (account signed in elsewhere), then clear it
-    // so it doesn't reappear on a later, unrelated visit to this screen.
+    // Show a one-time notice if force-logged-out elsewhere, then clear it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final authProvider = context.read<AuthProvider>();

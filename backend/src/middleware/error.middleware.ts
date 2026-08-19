@@ -10,7 +10,7 @@ export function errorHandler(
 
     const statusCode = err.statusCode || 500;
 
-    // 🔒 Security: Never leak raw internal error messages for 500 server crashes in production
+    // Security: Never leak raw internal error messages for 500 server crashes in production
     const message = (statusCode === 500 && process.env.NODE_ENV === 'production')
         ? 'Internal Server Error'
         : (err.message || 'Internal Server Error');

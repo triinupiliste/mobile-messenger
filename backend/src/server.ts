@@ -30,40 +30,32 @@ const io = new Server(server, {
 setIO(io);
 
 
-// Middleware
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded media (images, videos, voice notes). Files are stored encrypted
-// at rest, so this decrypts them on the fly rather than using express.static.
-// Requires a valid JWT (header or ?token= query param) so media can't be
-// fetched by anyone who merely guesses/observes a filename.
+// Files are stored encrypted at rest, so this decrypts on the fly. Requires
+// a valid JWT so media can't be fetched by guessing a filename.
 app.get('/uploads/:filename', verifyMediaToken, MediaController.getMedia);
 
-// Root health-check route before your API routes
 app.get('/', (req, res) => {
     res.status(200).json({ status: 'ok', message: 'Mobile Messenger API is running' });
 });
 
-// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/media', mediaRoutes);
 
-// Global Error Handler
 app.use(errorHandler);
 
-// Register Socket.io Event Handlers
 registerChatHandlers(io);
 
 const PORT = process.env.PORT || 5000;
 
-// Ensure the schema exists before accepting any requests — critical for a
-// fresh deploy against a managed Postgres host (e.g. Railway) that has no
-// existing tables yet.
+// Ensures schema exists before accepting requests — critical for fresh
+// deploys on managed hosts (e.g. Railway) that start with no tables.
 runMigrations()
     .catch((err) => {
         console.error('Failed to run database migrations:', err);

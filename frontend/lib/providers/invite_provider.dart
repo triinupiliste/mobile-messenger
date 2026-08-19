@@ -27,9 +27,7 @@ class InviteProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Retry attaching the socket listener here too, in case the socket wasn't
-    // ready yet the first time (e.g. right at app startup before login
-    // finishes connecting it).
+    // Retry attaching in case the socket wasn't ready yet at app startup.
     _initGlobalSocketListener();
 
     try {
@@ -44,7 +42,6 @@ class InviteProvider with ChangeNotifier {
   }
 
   // Marks every currently known incoming invite as seen, clearing the badge.
-  // Called when the user opens the Invites tab.
   void markIncomingSeen() {
     for (final invite in _incoming) {
       _seenInviteIds.add(_inviteId(invite));
@@ -75,10 +72,8 @@ class InviteProvider with ChangeNotifier {
         notifyListeners();
       });
 
-      // A sender/recipient we have a pending invite with changed their
-      // username/avatar — patch it into the incoming/outgoing lists so it
-      // updates live instead of only after the next fetchInvites().
-      SocketService.socket.on(SocketEvents.profileUpdated, (data) {
+        // A sender/recipient we have a pending invite with changed their username/avatar.
+        SocketService.socket.on(SocketEvents.profileUpdated, (data) {
         final userId = extractUserId(data, 'userId');
         if (userId == null) return;
         var changed = false;
@@ -118,11 +113,8 @@ class InviteProvider with ChangeNotifier {
 
   Future<void> respondToInvite(String inviteId, String status) async {
     await ApiService.respondToInvite(inviteId, status);
-    // Remove it immediately rather than waiting on the fetchInvites() refresh
-    // below — if that refresh call is slow or fails (network hiccup), the
-    // invite would otherwise keep showing with working Accept/Decline
-    // buttons, letting it be responded to again even though the backend
-    // already processed it.
+    // Remove it immediately rather than waiting on the refresh below, so it can't be
+    // responded to twice if that call is slow or fails.
     _incoming = _incoming.where((invite) => _inviteId(invite) != inviteId).toList();
     notifyListeners();
     await fetchInvites();

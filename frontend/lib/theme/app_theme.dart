@@ -3,15 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
-  // Renamed from the old `lightTheme` getter now that it adapts to
-  // AppColors.isDark (toggled from Settings) instead of always being light —
-  // callers just read `AppTheme.theme` and get whichever mode is active.
+  // Adapts to AppColors.isDark (toggled from Settings) instead of always being light.
   static ThemeData get theme {
     final brightness = AppColors.isDark ? Brightness.dark : Brightness.light;
     final baseTextTheme = (AppColors.isDark ? ThemeData.dark() : ThemeData.light()).textTheme;
-    // A rounder, more distinctive font than the default system typeface
-    // (Roboto/San Francisco) — this alone goes a long way toward making the
-    // app feel designed rather than default.
     final textTheme = GoogleFonts.manropeTextTheme(baseTextTheme).apply(
       bodyColor: AppColors.textPrimary,
       displayColor: AppColors.textPrimary,

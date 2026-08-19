@@ -44,9 +44,8 @@ export class UserController {
                 }
             }
 
-            // Enforce the same uniqueness constraints as registration when either
-            // field is being changed, so a profile edit can't collide with another
-            // account's email or username.
+            // Enforce the same email/username uniqueness constraints as registration
+            // when either field changes.
             if (normalizedUsername !== undefined || normalizedEmail !== undefined) {
                 const existingUser = await UserRepository.findByEmailOrUsernameExcludingUser(
                     normalizedEmail ?? '',
@@ -72,9 +71,8 @@ export class UserController {
                 aboutMe: about_me,
             });
 
-            // Let anyone who has this user as a chat contact or a pending
-            // invite see the new username/avatar live, without needing to
-            // reopen the chat list/invites/search screens.
+            // Let contacts and pending-invite partners see the new username/avatar
+            // live, without reopening the chat list/invites/search screens.
             const [contactIds, invitePartnerIds] = await Promise.all([
                 ChatRepository.getContactIds(userId),
                 InviteRepository.getPendingInvitePartnerIds(userId),
@@ -96,8 +94,7 @@ export class UserController {
     }
 
 
-    // Fetches another user's public profile (username, email, avatar, about me) —
-    // used e.g. by the "View Profile" option in a chat's overflow menu.
+    // Used by the "View Profile" option in a chat's overflow menu.
     static async getUserById(req: Request, res: Response): Promise<void> {
         try {
             const { userId } = req.params;
@@ -136,8 +133,7 @@ export class UserController {
         }
     }
 
-    // Saves/refreshes this device's Firebase Cloud Messaging token so the
-    // backend can push notifications (new messages, new invites) to it.
+    // Lets the backend push notifications (new messages, invites) to this device.
     static async updateFcmToken(req: Request, res: Response): Promise<void> {
         try {
             const userId = (req as any).user.userId;

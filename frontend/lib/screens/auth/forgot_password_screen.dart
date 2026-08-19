@@ -32,9 +32,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!mounted) return;
     setState(() {
       _isLoading = false;
-      // The backend always returns a generic success message (even for
-      // unknown emails) to avoid leaking which accounts exist, so any
-      // response here means the request went through fine.
+      // Backend always returns a generic success message, even for unknown emails,
+      // to avoid leaking which accounts exist.
       _requestSent = true;
       _errorMessage = message;
     });

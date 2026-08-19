@@ -2,29 +2,23 @@ import pool from '../config/database';
 import { User, Profile } from '../models/user.model';
 import { encryptText, decryptFields, hashForLookup } from '../utils/encryption.util';
 
-// email is stored encrypted (see email_hash below), so decrypt it before
-// handing a row back to callers that expect plaintext (login, registration
-// duplicate checks, sending emails, JWT payloads, etc.) — mirrors how
-// avatar_url/about_me are already decrypted before being returned.
+// Email is stored encrypted (see email_hash below); decrypt before handing
+// rows back to callers that expect plaintext.
 function withDecryptedEmail<T extends { email?: string | null }>(row: T): T {
     return decryptFields(row, ['email']) as T;
 }
 
 export class UserRepository {
-    // email is matched via its deterministic HMAC hash (email_hash) rather
-    // than the (now encrypted, non-deterministic) email column itself — AES
-    // with a random IV produces different ciphertext every time, so it can't
-    // be matched with SQL `=`. Callers must pass an already-trimmed/lowercased
-    // email so the hash is computed consistently.
+    // Matched via the deterministic email_hash, since the encrypted email column
+    // can't be matched with SQL `=`. Callers must pass an already-normalized email.
     static async findByEmailOrUsername(email: string, username: string): Promise<User | null> {
         const query = 'SELECT * FROM users WHERE email_hash = $1 OR username = $2';
         const result = await pool.query(query, [hashForLookup(email), username]);
         return result.rows[0] ? withDecryptedEmail(result.rows[0]) : null;
     }
 
-    // Same lookup as above but excludes the given user, so a profile update can
-    // check for collisions with *other* accounts without flagging the user's
-    // own unchanged email/username as "already taken".
+    // Same as above but excludes the given user, so a profile update doesn't
+    // flag the user's own unchanged email/username as taken.
     static async findByEmailOrUsernameExcludingUser(
         email: string,
         username: string,
@@ -61,7 +55,6 @@ export class UserRepository {
             ]);
             const user: User = withDecryptedEmail(userResult.rows[0]);
 
-            // Create blank profile for the new user
             await client.query('INSERT INTO profiles (user_id) VALUES ($1)', [user.id]);
             await client.query('COMMIT');
             return user;
@@ -138,12 +131,8 @@ export class UserRepository {
     }
 
     static async searchUsers(searchTerm: string, currentUserId: string): Promise<User[]> {
-        // relationship_status lets the client show "Friends"/"Pending" instead of
-        // an Invite button: 'friends' if the most recent invite between them was
-        // accepted (and they haven't since unfriended each other, which downgrades
-        // it to 'removed'), 'pending' if either direction has an unresolved
-        // invite, else 'none'. Declined/removed invites are intentionally
-        // excluded from both checks so that pair can be found and invited again.
+        // relationship_status lets the client show "Friends"/"Pending" instead of an
+        // Invite button. Declined/removed invites are excluded so that pair can be invited again.
         const query = `
             SELECT u.id, u.email, u.username, u.created_at, p.avatar_url,
                 (SELECT cp1.chat_id FROM chat_participants cp1
@@ -170,10 +159,8 @@ export class UserRepository {
             WHERE (u.username ILIKE $1 OR u.email_hash = $3) AND u.id != $2
             ORDER BY u.username
             LIMIT 10`;
-        // Username supports partial/substring matching (ILIKE) since it's a
-        // public, searchable handle. Email is encrypted at rest, so it can only
-        // be matched exactly via its deterministic hash — the search term must
-        // be the complete email address for an email match to hit.
+        // Username matches via ILIKE (public, searchable). Email is encrypted at
+        // rest, so it only matches via its deterministic hash — the full address is required.
         const result = await pool.query(query, [
             `%${searchTerm}%`,
             currentUserId,
@@ -191,11 +178,8 @@ export class UserRepository {
         await pool.query('UPDATE users SET fcm_token = $2 WHERE id = $1', [userId, fcmToken]);
     }
 
-    // Bumps the account's session version and returns the new value, so it can
-    // be embedded in the freshly-issued JWT. Any previously-issued token (e.g.
-    // one held by another device that's already logged in) carries the old
-    // version and will be rejected by the auth middleware/socket handshake,
-    // enforcing a single active login session per account.
+    // Bumps the session version for the new JWT; any previously-issued token
+    // carries the old version and gets rejected, enforcing single-device login.
     static async incrementSessionVersion(userId: string): Promise<number> {
         const result = await pool.query(
             'UPDATE users SET session_version = session_version + 1 WHERE id = $1 RETURNING session_version',
@@ -204,17 +188,14 @@ export class UserRepository {
         return result.rows[0]?.session_version ?? 0;
     }
 
-    // Current session version for a user, used by the auth middleware/socket
-    // handshake to check whether a given JWT's embedded version is still the
-    // active one. Returns null if the account no longer exists.
+    // Used by the auth middleware/socket handshake to check whether a JWT's
+    // embedded version is still active. Returns null if the account no longer exists.
     static async getSessionVersion(userId: string): Promise<number | null> {
         const result = await pool.query('SELECT session_version FROM users WHERE id = $1', [userId]);
         return result.rows[0]?.session_version ?? null;
     }
 
-    // Lightweight lookup used to build push notification payloads (sender's
-    // display name, recipient's device token) without pulling/decrypting a
-    // full profile.
+    // Lightweight lookup for push notification payloads, without pulling/decrypting a full profile.
     static async getPushInfoById(userId: string): Promise<{ username: string; fcm_token: string | null } | null> {
         const result = await pool.query(
             'SELECT username, fcm_token FROM users WHERE id = $1',
@@ -263,9 +244,8 @@ export class UserRepository {
         );
     }
 
-    // Looks up a user by reset token hash without consuming it, so the reset
-    // form can be shown (or rejected as invalid/expired) before a new password
-    // is submitted.
+    // Looks up by reset token without consuming it, so the reset form can be
+    // shown/rejected before a new password is submitted.
     static async findByValidResetToken(resetTokenHash: string): Promise<User | null> {
         const query = `
             SELECT * FROM users

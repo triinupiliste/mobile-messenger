@@ -11,13 +11,8 @@ const execFileAsync = promisify(execFile);
 // up on the server, in case ffmpeg gets stuck on a malformed/unusual file.
 const COMPRESSION_TIMEOUT_MS = 5 * 60 * 1000;
 
-// Re-encodes a video down to a size/bitrate that reliably fits under the
-// upload limit, using the ffmpeg binary installed in the server's container
-// (see Dockerfile). This runs server-side rather than on the user's phone so
-// compression behaves consistently across uploads instead of depending on
-// the wide variety of phone hardware/OS versions and native-plugin quirks
-// that made client-side compression (the video_compress Flutter plugin)
-// unreliable.
+// Re-encodes video via the ffmpeg binary in the server container (see
+// Dockerfile) — runs server-side since client-side compression (video_compress plugin) was unreliable across devices.
 export async function compressVideo(inputBuffer: Buffer, originalExtension: string): Promise<Buffer> {
     // Only used to name the temp input file so ffmpeg has a hint about the
     // container format — validate it so it can't be used to inject a path.
@@ -32,9 +27,8 @@ export async function compressVideo(inputBuffer: Buffer, originalExtension: stri
         await execFileAsync('ffmpeg', [
             '-y',
             '-i', inputPath,
-            // Cap resolution at 1280px on the long edge (already-smaller
-            // videos are left untouched); -2 keeps the other edge divisible
-            // by 2, which H.264 requires.
+            // Cap resolution at 1280px on the long edge (smaller videos untouched);
+            // -2 keeps the other edge divisible by 2, which H.264 requires.
             '-vf', "scale='min(1280,iw)':-2",
             '-c:v', 'libx264',
             '-preset', 'veryfast',

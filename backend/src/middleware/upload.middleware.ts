@@ -14,22 +14,15 @@ export function generateStoredFilename(originalName: string): string {
     return `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${path.extname(originalName)}`;
 }
 
-// Files are encrypted (see MediaController.uploadMedia) before they're written to
-// disk, so multer only needs to buffer the raw upload in memory rather than
-// writing plaintext straight to disk itself.
-// Videos are compressed server-side (see video.util.ts) after upload but
-// before storage, so the raw upload is allowed to be much larger than the
-// final 20MB limit enforced post-compression — 150MB comfortably covers a
-// 60-second phone-recorded clip at typical bitrates while still bounding how
-// much memory/disk a single upload can consume.
+// Buffers in memory; files are encrypted before disk write (see MediaController).
+// 150MB covers a raw video upload before server-side compression brings it under 20MB.
 export const uploadMedia = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 150 * 1024 * 1024 },
 });
 
-// Profile pictures are restricted to JPEG/PNG and a smaller 5MB limit, unlike
-// general chat media (images/video/audio) which allow more formats and a
-// larger 20MB limit above.
+// Profile pictures are restricted to JPEG/PNG and 5MB, unlike general chat
+// media which allows more formats and a 20MB limit.
 const AVATAR_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png'];
 
 const avatarUpload = multer({

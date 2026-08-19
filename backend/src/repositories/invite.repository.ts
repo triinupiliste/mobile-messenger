@@ -43,9 +43,8 @@ export class InviteRepository {
         }));
     }
 
-    // Same shape as getPendingInvitesForUser's rows, but for a single invite —
-    // used to emit a fully-enriched 'new_invite' socket payload (with sender
-    // username/avatar) right when it's created, instead of just raw columns.
+    // Same shape as getPendingInvitesForUser, for a single invite — used to
+    // emit a fully-enriched 'new_invite' socket payload right when it's created.
     static async getIncomingInviteById(inviteId: string): Promise<IncomingInviteItem | null> {
         const query = `
             SELECT i.id, i.sender_id, i.status, i.created_at,
@@ -98,10 +97,8 @@ export class InviteRepository {
         return result.rows[0] || null;
     }
 
-    // Called when a friendship is removed: downgrades the invite that made
-    // them friends so it no longer counts as an active relationship, letting
-    // either of them send a fresh invite later without hitting the
-    // "already exists" check in findExistingInvite.
+    // Downgrades the invite that made them friends so it no longer blocks a
+    // fresh invite via findExistingInvite's "already exists" check.
     static async markRemovedBetween(user1Id: string, user2Id: string): Promise<void> {
         const query = `
             UPDATE invites SET status = 'removed'
@@ -117,9 +114,8 @@ export class InviteRepository {
         return result.rows[0] || null;
     }
 
-    // Returns the distinct set of user ids this user has a pending invite with
-    // (as either sender or receiver) — used alongside getContactIds so a
-    // profile/avatar change is also reflected live on invite screens.
+    // User ids with a pending invite (sender or receiver) — used alongside
+    // getContactIds so profile/avatar changes reflect live on invite screens.
     static async getPendingInvitePartnerIds(userId: string): Promise<string[]> {
         const query = `
             SELECT DISTINCT

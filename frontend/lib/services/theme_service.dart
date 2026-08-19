@@ -5,10 +5,8 @@ import 'storage_service.dart';
 /// AppColors.primary is the only color that changes between themes; the
 /// actual switching is applied to AppColors directly.
 class ThemeService {
-  // Reads the previously saved theme (if any) and applies it, so the app
-  // launches with the user's chosen theme instead of always resetting to
-  // the default. Falls back to the default (sunset coral) if nothing was
-  // saved yet, or the saved value is unrecognized.
+  // Applies the previously saved theme so the app launches with the user's choice
+  // instead of resetting to the default.
   static Future<void> loadSavedTheme() async {
     final savedName = await StorageService.getThemeName();
     AppThemeName theme = AppThemeName.sunsetCoral;

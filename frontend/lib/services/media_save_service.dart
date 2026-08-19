@@ -22,9 +22,8 @@ class MediaSaveService {
         if (!granted) return MediaSaveResult.permissionDenied;
       }
 
-      // ngrok (when used to expose the backend) serves an HTML interstitial
-      // warning page to any non-browser request without this header, which
-      // would otherwise get saved as a fake/broken media file.
+      // ngrok serves an HTML interstitial warning page to non-browser requests
+      // without this header, which would otherwise get saved as a broken media file.
       final response = await http.get(Uri.parse(ApiService.mediaUrl(url)), headers: ApiService.ngrokHeader);
       if (response.statusCode != 200) return MediaSaveResult.failed;
 

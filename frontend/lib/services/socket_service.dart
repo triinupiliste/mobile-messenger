@@ -8,9 +8,8 @@ import 'storage_service.dart';
 
 class SocketService {
   static io.Socket? _socket;
-  // The auth token the current _socket connection was created with, so we can
-  // detect a different user logging in on the same app process and force a
-  // fresh connection instead of silently keeping the previous user's socket.
+  // Token the current _socket was created with, so a different user logging in
+  // on the same app process forces a fresh connection instead of reusing this one.
   static String? _connectedToken;
 
   // Non-nullable getter to keep all existing provider and screen calls working seamlessly
@@ -27,9 +26,7 @@ class SocketService {
 
     if (_socket != null && _socket!.connected && _connectedToken == token) return;
 
-    // Either not connected, or connected with a DIFFERENT user's token (e.g.
-    // switched accounts on the same device without a full app restart) —
-    // tear down the stale connection before creating a fresh one.
+    // Not connected, or connected with a different user's token; tear down before reconnecting.
     if (_socket != null) {
       _socket!.dispose();
       _socket = null;
@@ -60,8 +57,7 @@ class SocketService {
 
     _socket!.connect();
 
-    // Wait for the connection to actually establish (or fail) before returning,
-    // so callers can rely on the socket being ready right after initSocket().
+    // Wait for the connection to establish (or fail) so callers can rely on it being ready.
     await connected.future.timeout(
       const Duration(seconds: 5),
       onTimeout: () {},
@@ -69,9 +65,8 @@ class SocketService {
   }
 
   static void joinChat(String chatId) {
-    // socket.io-client buffers emits until the connection is established,
-    // so we don't need to gate this on `connected` — doing so previously
-    // caused join/send calls to be silently dropped during a reconnect race.
+    // socket.io-client buffers emits until connected, so no need to gate on `connected`—
+    // doing so previously caused join/send calls to be silently dropped during reconnects.
     _socket?.emit(SocketEvents.joinChat, chatId);
   }
 
@@ -111,9 +106,8 @@ class SocketService {
     }
   }
 
-  // Safe no-op if the socket hasn't been initialized (or was already torn
-  // down) — lets callers unregister listeners in dispose() without needing
-  // to guard against the throwing `socket` getter themselves.
+  // Safe no-op if the socket hasn't been initialized, so callers can unregister
+  // listeners in dispose() without guarding against the throwing `socket` getter.
   static void off(String event, [void Function(dynamic)? handler]) {
     _socket?.off(event, handler);
   }

@@ -80,12 +80,8 @@ class ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Checks whether it's safe to navigate away from this screen right now.
-  ///
-  /// If not in edit mode, or in edit mode with no unsaved changes, this exits
-  /// edit mode (if needed) and returns true immediately. Otherwise it prompts
-  /// the user to save or discard their changes, returning true if it's safe
-  /// to proceed (changes were saved or discarded) or false if the user
-  /// cancelled (in which case the caller should stay on this screen).
+  /// Returns true if not editing, or no unsaved changes; otherwise prompts to
+  /// save/discard and returns false only if the user cancels.
   Future<bool> confirmDiscardChangesIfNeeded() async {
     if (!_isEditing) return true;
 

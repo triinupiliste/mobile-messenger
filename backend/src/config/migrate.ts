@@ -3,14 +3,8 @@ import path from 'path';
 import pool from './database';
 import { encryptText, hashForLookup } from '../utils/encryption.util';
 
-// Idempotently creates the schema on a fresh database. The local Docker
-// Postgres auto-runs init.sql via docker-entrypoint-initdb.d on its very
-// first boot, but managed hosts like Railway don't have that mechanism —
-// their database starts out completely empty. Running this on every server
-// startup makes a fresh deploy (Railway, or anywhere else) self-initializing
-// instead of requiring the schema to be pasted into a SQL console by hand.
-// Safe to call every time: it only executes init.sql if the `users` table
-// doesn't exist yet.
+// Creates the schema on a fresh database (managed hosts like Railway start
+// empty, unlike local Docker which auto-runs init.sql). No-op if already initialized.
 export async function runMigrations(): Promise<void> {
     const { rows } = await pool.query("SELECT to_regclass('public.users') AS exists");
     if (rows[0]?.exists) {
@@ -27,12 +21,8 @@ export async function runMigrations(): Promise<void> {
     await ensureSessionVersionColumn();
 }
 
-// Encrypts any plaintext emails left over from before email encryption was
-// added (older deployments that already have real user rows). Safe to run on
-// every startup: it adds the email_hash column if missing, then only touches
-// rows that don't have a hash yet, so already-migrated rows are never
-// re-encrypted. New installs run init.sql (which already has email_hash) and
-// start out with zero users, so this is a fast no-op for them.
+// Encrypts leftover plaintext emails from before email encryption existed.
+// Safe to re-run: only touches rows without an email_hash yet.
 async function ensureEmailEncryption(): Promise<void> {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_hash VARCHAR(64)');
     await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_hash ON users(email_hash)');
@@ -51,10 +41,8 @@ async function ensureEmailEncryption(): Promise<void> {
     }
 }
 
-// Adds the column backing single-active-session enforcement (see
-// UserRepository.incrementSessionVersion / auth middleware) for databases
-// created before this feature existed. New installs already get it from
-// init.sql; this is a no-op for them.
+// Adds the session_version column for DBs created before single-session
+// login existed (see UserRepository.incrementSessionVersion). No-op for new installs.
 async function ensureSessionVersionColumn(): Promise<void> {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0');
 }

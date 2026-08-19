@@ -17,31 +17,25 @@ import 'screens/home/home_screen.dart';
 import 'widgets/common/restart_widget.dart';
 
 void main() {
-  // App-wide crash safety net. Individual screens already handle expected
-  // failures (failed API calls, etc.) with their own try/catch + SnackBars,
-  // but there was previously nothing to stop a genuinely unexpected/uncaught
-  // error from crashing the whole app or leaving it on a blank screen.
+  // App-wide crash safety net for genuinely unexpected/uncaught errors, on top of
+  // screens' own try/catch + SnackBars for expected failures.
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Errors thrown by the Flutter framework itself (e.g. during a widget's
-    // build/layout/paint) are normally only printed to the console in
-    // release mode while leaving the broken widget on screen. Route them
-    // through the same logging path as other uncaught errors.
+    // Framework build/layout/paint errors are normally only printed to the console
+    // in release mode while leaving the broken widget on screen.
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
     };
 
-    // Catches errors that reach the engine directly (e.g. from platform
-    // channel callbacks) outside of the zone below.
+    // Catches errors that reach the engine directly (e.g. platform channel callbacks)
+    // outside of the zone below.
     PlatformDispatcher.instance.onError = (error, stack) {
       debugPrint('Uncaught platform error: $error\n$stack');
       return true;
     };
 
-    // Replaces the default red "Error" screen shown when a widget throws
-    // during build with a stable, branded fallback instead of a broken or
-    // blank screen.
+    // Replaces the default red "Error" screen with a stable, branded fallback.
     ErrorWidget.builder = (FlutterErrorDetails details) => const _CrashFallbackScreen();
 
     // Apply the user's previously chosen theme (if any) before the first
@@ -50,14 +44,12 @@ void main() {
 
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    // Not const: RestartWidget's builder must construct a fresh MyApp
-    // instance on every theme-triggered rebuild (see restart_widget.dart) —
-    // a const instance would be reused/canonicalized, making theme refreshes
-    // a no-op.
+    // Not const: RestartWidget's builder must construct a fresh MyApp instance on
+    // every rebuild, otherwise a const instance is reused and theme refreshes no-op.
     runApp(RestartWidget(builder: (context) => MyApp()));
   }, (error, stackTrace) {
-    // Catches uncaught async errors (e.g. from Futures/Timers/socket
-    // callbacks) that would otherwise crash the isolate.
+    // Catches uncaught async errors (e.g. Futures/Timers/socket callbacks)
+    // that would otherwise crash the isolate.
     debugPrint('Uncaught error: $error\n$stackTrace');
   });
 }
@@ -88,11 +80,8 @@ class _CrashFallbackScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              // Gives the user an actual way forward instead of a dead end:
-              // pops back to the app's root route (discarding whatever
-              // broken navigation state led to the error) and forces every
-              // screen to rebuild from scratch via RestartWidget, the same
-              // mechanism already used to apply theme changes app-wide.
+              // Pops back to the root route and forces a full rebuild via RestartWidget,
+              // the same mechanism used to apply theme changes app-wide.
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).popUntil((route) => route.isFirst);
@@ -128,11 +117,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Only 'resumed' means the app is actually visible/interactive right now.
-  // paused/inactive/hidden/detached all mean the user isn't looking at it
-  // (backgrounded, screen locked, in the app switcher, etc.) — even though a
-  // chat screen underneath may still be fully mounted with its socket
-  // listeners still registered.
+  // Only 'resumed' means the app is actually visible/interactive — a chat screen
+  // underneath may still be mounted with its socket listeners registered even
+  // while backgrounded/locked.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     AppLifecycleTracker.setForeground(state == AppLifecycleState.resumed);

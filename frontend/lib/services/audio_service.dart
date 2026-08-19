@@ -13,7 +13,6 @@ class AudioService {
   Stream<Duration> get onPositionChanged => _audioPlayer.onPositionChanged;
   Stream<void> get onPlayerComplete => _audioPlayer.onPlayerComplete;
 
-  // Start recording voice note
   Future<void> startRecording() async {
     if (await _audioRecorder.hasPermission()) {
       final dir = await getApplicationDocumentsDirectory();
@@ -26,17 +25,14 @@ class AudioService {
     }
   }
 
-  // Stop recording and return file path
   Future<String?> stopRecording() async {
     final path = await _audioRecorder.stop();
     return path ?? _recordedPath;
   }
 
-  // A path/URL is "remote" if it's an already-absolute http(s) URL (legacy
-  // rows, see ApiService.mediaUrl's doc comment) or one of our own
-  // server-relative upload paths (e.g. '/uploads/xyz.m4a', what every voice
-  // message saved today actually stores). Anything else is a local device
-  // filesystem path (e.g. a just-recorded, not-yet-uploaded file).
+  // "Remote" means an absolute http(s) URL (legacy rows) or a server-relative
+  // upload path like '/uploads/xyz.m4a' (what's stored today); anything else is
+  // a local, not-yet-uploaded file path.
   bool _isRemote(String urlOrPath) =>
       urlOrPath.startsWith('http://') ||
       urlOrPath.startsWith('https://') ||
@@ -52,12 +48,7 @@ class AudioService {
     }
   }
 
-  // Play audio message. Previously this only resolved the playable server
-  // URL (host + auth token, see ApiService.mediaUrl) when the raw value
-  // already started with "http" — but every voice message actually stores a
-  // server-relative path like '/uploads/xyz.m4a', so that check always
-  // failed and this silently fell through to treating the string as a local
-  // file path that doesn't exist, playing nothing.
+  // Voice messages store a server-relative path like '/uploads/xyz.m4a', not a full URL.
   Future<void> playAudio(String urlOrPath) async {
     if (_isRemote(urlOrPath)) {
       await _audioPlayer.play(UrlSource(ApiService.mediaUrl(urlOrPath)));
@@ -78,10 +69,8 @@ class AudioService {
     await _audioPlayer.stop();
   }
 
-  // Releases the underlying recorder/player native resources. Must be called
-  // by whichever widget owns this instance (from its own dispose()) once the
-  // instance is no longer needed, otherwise the native recorder/player
-  // session is leaked for the lifetime of the app.
+  // Must be called by the owning widget's dispose(), otherwise the native
+  // recorder/player session leaks for the app's lifetime.
   Future<void> dispose() async {
     await _audioRecorder.dispose();
     await _audioPlayer.dispose();

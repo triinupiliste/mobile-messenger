@@ -6,10 +6,8 @@ class StorageService {
   static const String _themeKey = 'app_theme';
   static const String _darkModeKey = 'app_dark_mode';
 
-  // In-memory copy of the token, kept in sync with secure storage. Widgets
-  // that build media URLs (e.g. NetworkImage) need the token synchronously,
-  // which flutter_secure_storage can't provide directly since all its reads
-  // are async.
+  // In-memory copy kept in sync with secure storage, since widgets that build
+  // media URLs need the token synchronously (secure storage reads are async-only).
   static String? _cachedToken;
   static String? get cachedToken => _cachedToken;
 

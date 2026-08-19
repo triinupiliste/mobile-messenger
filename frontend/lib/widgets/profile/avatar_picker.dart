@@ -25,10 +25,9 @@ class AvatarPicker extends StatelessWidget {
 
     if (pickedFile == null) return;
 
-    // Launch Image Cropper
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: pickedFile.path,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Square crop for profile avatars
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Crop Profile Picture',
@@ -46,8 +45,7 @@ class AvatarPicker extends StatelessWidget {
     if (croppedFile == null) return;
 
     final file = File(croppedFile.path);
-    
-    // Extension & size validation
+
     final extension = file.path.split('.').last.toLowerCase();
     if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
       if (context.mounted) {

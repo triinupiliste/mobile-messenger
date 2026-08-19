@@ -7,26 +7,16 @@ import '../services/push_notification_service.dart';
 import '../services/socket_service.dart';
 import '../utils/json_utils.dart';
 
-// Owns the message list + real-time socket sync for a single, specific chat
-// room. Deliberately scoped per chat room (created fresh via
-// ChangeNotifierProvider right where ChatRoomScreen is built, NOT registered
-// globally in main.dart) since message state is only ever needed by that one
-// screen — unlike ChatProvider/InviteProvider, which are genuinely app-wide.
-//
-// Pure UI concerns (scroll position, reply-compose box, recording/upload
-// spinners, the message TextField) deliberately stay in ChatRoomScreen's
-// State instead of moving here — they're about what's currently rendered,
-// not about the underlying chat data.
+// Owns the message list + real-time socket sync for a single chat room. Created fresh
+// per ChatRoomScreen (not registered globally in main.dart) since this state is only
+// needed by that one screen, unlike ChatProvider/InviteProvider.
 class MessageProvider with ChangeNotifier {
   MessageProvider(this.chatId);
 
   final String chatId;
 
-  // Tracks messages this device sent but hasn't heard back from the server
-  // about yet, keyed by a locally-generated tempId. If the server doesn't
-  // confirm (echo) a message back within this window, it's marked 'failed'
-  // so the user gets visual feedback and a retry option instead of the
-  // message silently vanishing (e.g. when offline or the socket drops).
+  // Messages sent but not yet confirmed by the server, keyed by tempId. If not
+  // confirmed within this window, marked 'failed' so the user can retry.
   static const Duration _sendTimeout = Duration(seconds: 10);
   final Map<String, Timer> _pendingSendTimers = {};
 
@@ -43,11 +33,8 @@ class MessageProvider with ChangeNotifier {
   bool get isLoadingHistory => _isLoadingHistory;
   String? get currentUserId => _currentUserId;
 
-  // Stored so dispose() can unregister exactly these callbacks — without this,
-  // reopening the same chat repeatedly stacks duplicate listeners on the
-  // shared socket singleton, which stops new events from reliably reaching
-  // the currently-visible screen (an earlier, already-disposed listener can
-  // throw and prevent later listeners for the same event from running).
+  // Stored so dispose() can unregister exactly these callbacks; otherwise reopening
+  // the same chat stacks duplicate listeners on the shared socket singleton.
   late final void Function(dynamic) _onConnect;
   late final void Function(dynamic) _onReceiveMessage;
   late final void Function(dynamic) _onErrorFeedbackMarksFailed;
@@ -59,21 +46,16 @@ class MessageProvider with ChangeNotifier {
   // Joins the chat room, registers all real-time listeners, and loads
   // persisted history. Call once, right after construction.
   Future<void> init() async {
-    // Catches up on read-receipts for messages that arrived while the app
-    // was backgrounded (and so were deliberately NOT marked read yet, since
-    // the user wasn't actually looking at them) — now that they've resumed
-    // the app with this chat still the one on screen, it's fair to treat
-    // them as read.
+    // Catch up on read-receipts for messages that arrived while backgrounded
+    // (deliberately not marked read then, since the user wasn't looking at them).
     AppLifecycleTracker.addForegroundListener(_onAppForegrounded);
 
-    // socket.io-client buffers emits until the connection is established,
-    // so we don't need to gate this on `connected` — doing so previously
-    // caused join/send calls to be silently dropped during a reconnect race.
+    // socket.io-client buffers emits until connected, so no need to gate on `connected`—
+    // doing so previously caused join/send calls to be silently dropped during reconnects.
     SocketService.joinChat(chatId);
 
-    // Re-join whenever the socket (re)connects — e.g. after the app is
-    // backgrounded and the connection drops — otherwise this chat stops
-    // receiving real-time updates until it's reopened.
+    // Re-join whenever the socket (re)connects (e.g. after backgrounding drops it),
+    // otherwise this chat stops receiving real-time updates until reopened.
     _onConnect = (_) {
       SocketService.joinChat(chatId);
     };
@@ -86,8 +68,7 @@ class MessageProvider with ChangeNotifier {
 
       final pendingIndex = tempId != null ? _messages.indexWhere((m) => m['_tempId'] == tempId) : -1;
       if (pendingIndex != -1) {
-        // This confirms a message this device just sent — replace the
-        // optimistic placeholder with the server-confirmed message.
+        // Confirms a message this device just sent; replace the optimistic placeholder.
         _messages[pendingIndex] = incoming;
       } else {
         _messages.add(incoming);
@@ -97,28 +78,19 @@ class MessageProvider with ChangeNotifier {
       }
       notifyListeners();
 
-      // Let the sender know their message actually reached this device live,
-      // so their tick updates from 'sent' to 'delivered'. This is accurate
-      // regardless of whether the app is foregrounded — the message really
-      // was delivered to this device's live connection.
+      // Let the sender know their message reached this device live, so their tick
+      // updates from 'sent' to 'delivered', regardless of whether we're foregrounded.
       if (_currentUserId != null && incoming['sender_id'] != _currentUserId) {
         final messageId = incoming['id']?.toString();
         if (messageId != null && messageId.isNotEmpty) {
           SocketService.updateMessageStatus(chatId, messageId, 'delivered');
         }
 
-        // But only mark it 'read' (and cancel the tray notification) if the
-        // app is actually in the foreground right now. This screen can stay
-        // mounted (and this listener stays registered) even while the app is
-        // backgrounded — e.g. the user switched to another app without
-        // navigating away from this chat — in which case the message hasn't
-        // really been seen yet.
+        // Only mark 'read' if the app is actually foregrounded right now — this screen
+        // can stay mounted while backgrounded, in which case it hasn't really been seen.
         if (AppLifecycleTracker.isForeground) {
-          // This chat is open right now, so the message is immediately visible
-          // and counts as read — tell the backend straight away instead of
-          // waiting for the next time this screen is opened. Otherwise the
-          // chat list still shows it as unread once you navigate back, since
-          // its unread count is re-fetched fresh from the server.
+          // Tell the backend immediately instead of waiting for this screen to reopen,
+          // otherwise the chat list shows it as unread again once its count is re-fetched.
           ApiService.markChatMessagesRead(chatId);
           PushNotificationService.cancelForChat(chatId);
         }
@@ -126,8 +98,7 @@ class MessageProvider with ChangeNotifier {
     };
     SocketService.on(SocketEvents.receiveMessage, _onReceiveMessage);
 
-    // If the server rejects a send outright (e.g. an unexpected error while
-    // saving), mark that specific pending message failed immediately instead
+    // If the server rejects a send outright, mark it failed immediately instead
     // of waiting out the full send timeout.
     _onErrorFeedbackMarksFailed = (data) {
       final tempId = data['tempId']?.toString();
@@ -170,8 +141,7 @@ class MessageProvider with ChangeNotifier {
     };
     SocketService.on(SocketEvents.messageDeleted, _onMessageDeleted);
 
-    // When the other participant reads this chat, mark my sent messages as
-    // 'read' so the delivery ticks update in real time.
+    // When the other participant reads this chat, mark my sent messages 'read'.
     _onMessagesRead = (data) {
       if (data['chatId'] != chatId) return;
       // If I'm the one who just read the chat, my own sent messages weren't affected.
@@ -273,9 +243,8 @@ class MessageProvider with ChangeNotifier {
     });
   }
 
-  // Re-sends a message that previously failed (e.g. connection dropped, or
-  // the server rejected it), reusing the same tempId so the retried send
-  // still replaces this same bubble once confirmed.
+  // Re-sends a message that previously failed, reusing the same tempId so the
+  // retry still replaces this same bubble once confirmed.
   void retryMessage(String tempId) {
     final index = _messages.indexWhere((m) => m['_tempId'] == tempId);
     if (index == -1) return;

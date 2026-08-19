@@ -39,10 +39,8 @@ function escapeHtml(value: string): string {
         .replace(/'/g, '&#39;');
 }
 
-// Shared visual chrome for every page a user can land on by tapping a link in
-// an email (verify-email / reset-password). Mirrors the Flutter app's own
-// look (Manrope font, sunset-coral gradient badge, rounded "card" surface)
-// so the browser hand-off doesn't feel like a jarring, unstyled detour.
+// Visual chrome for the verify-email/reset-password pages a user reaches by
+// tapping an email link — mirrors the Flutter app's look and feel.
 const BRAND = {
     background: '#FFF5F2',
     surface: '#FFFFFF',
@@ -109,7 +107,6 @@ export class AuthController {
                 return;
             }
 
-            // Check if email or username already exists (provides strict visual feedback)
             const existingUser = await UserRepository.findByEmailOrUsername(
                 normalizedEmail,
                 normalizedUsername,
@@ -188,12 +185,8 @@ export class AuthController {
                 return;
             }
 
-            // Only one device may be logged in at a time: bumping the session
-            // version invalidates any token issued by a previous login (the
-            // auth middleware/socket handshake reject a mismatched version),
-            // and any of that device's currently-open socket connections are
-            // kicked immediately below instead of waiting for their next
-            // request to fail.
+            // Enforce single-device login: bumping session version invalidates any
+            // previously-issued token, and this device's open sockets are kicked below.
             const sessionVersion = await UserRepository.incrementSessionVersion(user.id);
             const token = jwt.sign({ userId: user.id, email: user.email, sv: sessionVersion }, JWT_SECRET, { expiresIn: '7d' });
 
@@ -324,10 +317,8 @@ export class AuthController {
     }
 
     static async resetPassword(req: Request, res: Response): Promise<void> {
-        // The reset link from the email opens this in a browser (GET), which shows
-        // a simple HTML form; the form then submits back here (POST) to actually
-        // change the password. The mobile app can instead call this directly with
-        // JSON, in which case we respond with JSON instead of rendering HTML.
+        // GET renders an HTML form (opened from the email link); POST handles both
+        // that form submission and direct JSON calls from the mobile app.
         if (req.method === 'GET') {
             const rawToken = typeof req.query.token === 'string' ? req.query.token : '';
             if (!rawToken) {

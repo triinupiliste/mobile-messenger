@@ -133,9 +133,7 @@ class _FullScreenVideoPlayerState extends State<_FullScreenVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    // Without this header, ngrok (when used to expose the backend) returns
-    // its HTML interstitial warning page instead of the actual video bytes,
-    // so the native video player fails to load/play the file.
+    // Without this header, ngrok returns its HTML interstitial page instead of video bytes.
     _controller = VideoPlayerController.networkUrl(
       Uri.parse(ApiService.mediaUrl(widget.url)),
       httpHeaders: ApiService.ngrokHeader,
