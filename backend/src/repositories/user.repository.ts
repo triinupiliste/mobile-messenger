@@ -191,6 +191,27 @@ export class UserRepository {
         await pool.query('UPDATE users SET fcm_token = $2 WHERE id = $1', [userId, fcmToken]);
     }
 
+    // Bumps the account's session version and returns the new value, so it can
+    // be embedded in the freshly-issued JWT. Any previously-issued token (e.g.
+    // one held by another device that's already logged in) carries the old
+    // version and will be rejected by the auth middleware/socket handshake,
+    // enforcing a single active login session per account.
+    static async incrementSessionVersion(userId: string): Promise<number> {
+        const result = await pool.query(
+            'UPDATE users SET session_version = session_version + 1 WHERE id = $1 RETURNING session_version',
+            [userId],
+        );
+        return result.rows[0]?.session_version ?? 0;
+    }
+
+    // Current session version for a user, used by the auth middleware/socket
+    // handshake to check whether a given JWT's embedded version is still the
+    // active one. Returns null if the account no longer exists.
+    static async getSessionVersion(userId: string): Promise<number | null> {
+        const result = await pool.query('SELECT session_version FROM users WHERE id = $1', [userId]);
+        return result.rows[0]?.session_version ?? null;
+    }
+
     // Lightweight lookup used to build push notification payloads (sender's
     // display name, recipient's device token) without pulling/decrypting a
     // full profile.

@@ -21,6 +21,25 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isResendingVerification = false;
   String? _errorMessage;
 
+  @override
+  void initState() {
+    super.initState();
+    // Show a one-time notice if this screen is showing because the device
+    // was just force-logged-out (account signed in elsewhere), then clear it
+    // so it doesn't reappear on a later, unrelated visit to this screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final authProvider = context.read<AuthProvider>();
+      final message = authProvider.forceLogoutMessage;
+      if (message != null) {
+        authProvider.clearForceLogoutMessage();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+        );
+      }
+    });
+  }
+
   void _clearLoginFeedback() {
     if (_errorMessage != null) {
       setState(() => _errorMessage = null);

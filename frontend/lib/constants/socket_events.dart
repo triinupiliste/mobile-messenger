@@ -24,4 +24,8 @@ class SocketEvents {
   static const String newInvite = 'new_invite';
   static const String inviteResponded = 'invite_responded';
   static const String profileUpdated = 'profile_updated';
+
+  // Emitted by the server right before disconnecting a socket whose account
+  // just logged in on a different device (single-active-session enforcement).
+  static const String forceLogout = 'force_logout';
 }

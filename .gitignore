@@ -13,3 +13,4 @@ backend/uploads/
 
 # Logs
 *.log
+*Zone.Identifier

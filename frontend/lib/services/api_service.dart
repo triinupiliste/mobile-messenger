@@ -24,6 +24,18 @@ MediaType? _imageContentTypeForPath(String path) {
   }
 }
 
+// Thrown when the backend reports that this account's token is no longer the
+// active session (i.e. it was signed in on another device, which invalidates
+// every previously-issued token). Callers should treat this as "log out
+// locally", distinct from an ordinary network/server error.
+class SessionInvalidatedException implements Exception {
+  final String message;
+  SessionInvalidatedException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class ApiService {
   static const String baseUrl = '$serverBaseUrl/api';
 
@@ -133,7 +145,38 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
+    _throwIfSessionInvalidated(response);
     throw Exception('Failed to fetch profile');
+  }
+
+  // Set once by AuthProvider at startup. Invoked whenever any endpoint
+  // reports SESSION_INVALIDATED, regardless of whether the specific call
+  // site catches/rethrows SessionInvalidatedException itself — guarantees a
+  // forced logout happens even from callers (e.g. ChatProvider) that catch
+  // and swallow errors broadly instead of propagating this one specially.
+  static void Function(String message)? onSessionInvalidated;
+
+  // Checks whether a non-200 response is specifically the backend telling us
+  // this token is no longer the active session (see auth.middleware.ts),
+  // e.g. because the account logged in on another device. Throws
+  // SessionInvalidatedException so callers (AuthProvider) can distinguish
+  // this from an ordinary failed request and force a local logout instead of
+  // just showing a generic error.
+  static void _throwIfSessionInvalidated(http.Response response) {
+    if (response.statusCode != 401) return;
+    try {
+      final data = jsonDecode(response.body);
+      if (data is Map && data['code'] == 'SESSION_INVALIDATED') {
+        final message = data['error'] as String? ??
+            'You have been logged out because your account was signed in on another device.';
+        onSessionInvalidated?.call(message);
+        throw SessionInvalidatedException(message);
+      }
+    } on SessionInvalidatedException {
+      rethrow;
+    } catch (_) {
+      // Not JSON, or didn't match — fall through to the caller's generic error.
+    }
   }
 
   // Fetches another user's public profile (username, email, avatar, about me).
@@ -279,6 +322,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
+    _throwIfSessionInvalidated(response);
     return [];
   }
 
@@ -292,6 +336,7 @@ class ApiService {
       final data = jsonDecode(response.body);
       if (data is List) return data;
     }
+    _throwIfSessionInvalidated(response);
     return [];
   }
 

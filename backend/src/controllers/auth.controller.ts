@@ -6,6 +6,7 @@ import { UserRepository } from '../repositories/user.repository';
 import { validatePasswordStrength, isValidEmail } from '../utils/validator.util';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service';
 import { JWT_SECRET } from '../config/env';
+import { getIO } from '../sockets/socket.instance';
 
 const VERIFICATION_TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const RESET_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
@@ -187,7 +188,22 @@ export class AuthController {
                 return;
             }
 
-            const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+            // Only one device may be logged in at a time: bumping the session
+            // version invalidates any token issued by a previous login (the
+            // auth middleware/socket handshake reject a mismatched version),
+            // and any of that device's currently-open socket connections are
+            // kicked immediately below instead of waiting for their next
+            // request to fail.
+            const sessionVersion = await UserRepository.incrementSessionVersion(user.id);
+            const token = jwt.sign({ userId: user.id, email: user.email, sv: sessionVersion }, JWT_SECRET, { expiresIn: '7d' });
+
+            const io = getIO();
+            if (io) {
+                io.in(user.id).emit('force_logout', {
+                    message: 'You were logged out because your account was signed in on another device.',
+                });
+                io.in(user.id).disconnectSockets(true);
+            }
 
             res.status(200).json({ message: 'Login successful', token, user: { id: user.id, email: user.email, username: user.username } });
         } catch (error) {

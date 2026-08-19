@@ -24,6 +24,7 @@ export async function runMigrations(): Promise<void> {
     }
 
     await ensureEmailEncryption();
+    await ensureSessionVersionColumn();
 }
 
 // Encrypts any plaintext emails left over from before email encryption was
@@ -48,4 +49,12 @@ async function ensureEmailEncryption(): Promise<void> {
     if (rows.length > 0) {
         console.log(`Encrypted ${rows.length} plaintext user email(s) at rest.`);
     }
+}
+
+// Adds the column backing single-active-session enforcement (see
+// UserRepository.incrementSessionVersion / auth middleware) for databases
+// created before this feature existed. New installs already get it from
+// init.sql; this is a no-op for them.
+async function ensureSessionVersionColumn(): Promise<void> {
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0');
 }

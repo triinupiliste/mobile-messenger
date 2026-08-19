@@ -14,6 +14,7 @@ CREATE TABLE users (
     reset_token VARCHAR(255),
     reset_token_expires TIMESTAMP,
     fcm_token TEXT, -- Firebase Cloud Messaging token for push notifications
+    session_version INTEGER NOT NULL DEFAULT 0, -- Bumped on every login; a JWT whose embedded version no longer matches is rejected, enforcing a single active login session per account
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

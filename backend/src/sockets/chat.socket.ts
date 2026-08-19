@@ -36,8 +36,20 @@ export function registerChatHandlers(io: Server) {
             if (err) {
                 return next(new Error('Authentication error: Invalid or expired token'));
             }
-            socket.data.user = decoded; 
-            next();
+            // Reject a token whose embedded session version no longer matches
+            // the account's current one — it belongs to a device that's since
+            // been signed out by a newer login elsewhere (see login() /
+            // auth.middleware.ts for where the version is bumped/checked).
+            // Missing `sv` (tokens issued before this feature existed) is
+            // treated as version 0.
+            const tokenVersion = typeof decoded.sv === 'number' ? decoded.sv : 0;
+            UserRepository.getSessionVersion(decoded.userId).then((currentVersion) => {
+                if (currentVersion === null || currentVersion !== tokenVersion) {
+                    return next(new Error('Authentication error: Signed in on another device'));
+                }
+                socket.data.user = decoded;
+                next();
+            }).catch(() => next(new Error('Authentication error: Could not verify session')));
         });
     });
 

@@ -87,6 +87,19 @@ class _CrashFallbackScreen extends StatelessWidget {
                 style: TextStyle(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 16),
+              // Gives the user an actual way forward instead of a dead end:
+              // pops back to the app's root route (discarding whatever
+              // broken navigation state led to the error) and forces every
+              // screen to rebuild from scratch via RestartWidget, the same
+              // mechanism already used to apply theme changes app-wide.
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  RestartWidget.restartApp(context);
+                },
+                child: const Text('Try Again'),
+              ),
             ],
           ),
         ),
