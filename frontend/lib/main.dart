@@ -77,12 +77,12 @@ class _CrashFallbackScreen extends StatelessWidget {
             children: [
               const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Something went wrong',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Please try again.',
                 style: TextStyle(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
@@ -137,7 +137,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         navigatorKey: PushNotificationService.navigatorKey,
         title: 'Mobile Messenger',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
+        theme: AppTheme.theme,
         home: Consumer<AuthProvider>(
           builder: (context, authProvider, _) {
             if (authProvider.isLoading) {

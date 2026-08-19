@@ -18,11 +18,18 @@ class ThemeService {
         break;
       }
     }
+    final isDark = await StorageService.getDarkMode();
+    AppColors.applyDarkMode(isDark);
     AppColors.applyTheme(theme);
   }
 
   static Future<void> setTheme(AppThemeName theme) async {
     AppColors.applyTheme(theme);
     await StorageService.setThemeName(theme.name);
+  }
+
+  static Future<void> setDarkMode(bool isDark) async {
+    AppColors.applyDarkMode(isDark);
+    await StorageService.setDarkMode(isDark);
   }
 }

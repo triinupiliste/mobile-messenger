@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/invite_provider.dart';
+import '../../theme/app_colors.dart';
 import '../chat/chat_list_screen.dart';
 import '../invites/invites_screen.dart';
 import '../search/search_screen.dart';
@@ -68,10 +69,10 @@ class HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: AppColors.floatingBarShadow,
               blurRadius: 16,
               offset: const Offset(0, -4),
             ),
@@ -109,7 +110,7 @@ class HomeScreenState extends State<HomeScreen> {
                 inviteProvider.markIncomingSeen();
               }
             },
-            backgroundColor: Colors.white,
+            backgroundColor: AppColors.surface,
             elevation: 0,
             destinations: [
               NavigationDestination(

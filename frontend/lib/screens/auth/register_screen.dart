@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/auth/auth_header.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -70,81 +71,98 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Account')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Join Mobile Messenger',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 24),
-                if (_errorMessage != null)
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AuthHeader(
+                    icon: Icons.person_add_alt_1_rounded,
+                    title: 'Join Mobile Messenger',
+                    subtitle: 'Create an account to start chatting with friends',
+                  ),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      border: Border.all(color: Colors.red.shade200),
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(color: AppColors.softShadow, blurRadius: 20, offset: const Offset(0, 8)),
+                      ],
                     ),
-                    child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_errorMessage != null)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              border: Border.all(color: Colors.red.shade200),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700)),
+                          ),
+                        TextFormField(
+                          controller: _usernameController,
+                          decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person)),
+                          validator: (value) => value!.isEmpty ? 'Please enter a username' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) => value!.isEmpty ? 'Please enter an email' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passwordController,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock)),
+                          obscureText: true,
+                          validator: (value) => value!.isEmpty ? 'Please enter a password' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        // Password Strength Live Checklist
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.cardBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Password Requirements:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
+                              const SizedBox(height: 8),
+                              _buildRequirementRow('At least 8 characters', _hasMinLength),
+                              _buildRequirementRow('At least 1 lowercase letter', _hasLowercase),
+                              _buildRequirementRow('At least 1 uppercase letter', _hasUppercase),
+                              _buildRequirementRow('At least 1 digit', _hasDigit),
+                              _buildRequirementRow('At least 1 special character', _hasSpecial),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _isLoading ? null : _register,
+                          child: _isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
                   ),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person)),
-                  validator: (value) => value!.isEmpty ? 'Please enter a username' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) => value!.isEmpty ? 'Please enter an email' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock)),
-                  obscureText: true,
-                  validator: (value) => value!.isEmpty ? 'Please enter a password' : null,
-                ),
-                const SizedBox(height: 16),
-                // Password Strength Live Checklist
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Password Requirements:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
-                      const SizedBox(height: 8),
-                      _buildRequirementRow('At least 8 characters', _hasMinLength),
-                      _buildRequirementRow('At least 1 lowercase letter', _hasLowercase),
-                      _buildRequirementRow('At least 1 uppercase letter', _hasUppercase),
-                      _buildRequirementRow('At least 1 digit', _hasDigit),
-                      _buildRequirementRow('At least 1 special character', _hasSpecial),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _register,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

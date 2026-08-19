@@ -27,6 +27,9 @@ dependencies:
   firebase_core: ^3.8.0
   firebase_messaging: ^15.1.5
   flutter_local_notifications: ^18.0.1
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:

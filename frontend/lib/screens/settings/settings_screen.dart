@@ -12,6 +12,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late AppThemeName _selectedTheme = AppColors.currentTheme;
+  late bool _isDarkMode = AppColors.isDark;
   bool _isApplying = false;
 
   static const _themeOptions = [
@@ -50,6 +51,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isApplying = false);
   }
 
+  Future<void> _toggleDarkMode(bool value) async {
+    if (_isApplying) return;
+    setState(() {
+      _isApplying = true;
+      _isDarkMode = value;
+    });
+
+    await ThemeService.setDarkMode(value);
+
+    if (!mounted) return;
+    RestartWidget.restartApp(context);
+    setState(() => _isApplying = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,8 +72,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.cardBorder),
+              boxShadow: [
+                BoxShadow(color: AppColors.softShadow, blurRadius: 8, offset: const Offset(0, 3)),
+              ],
+            ),
+            child: SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              secondary: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                ),
+                child: Icon(
+                  _isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                  color: AppColors.primary,
+                ),
+              ),
+              title: Text('Dark Mode', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              subtitle: Text(
+                _isDarkMode ? 'Easier on the eyes at night' : 'Bright and clean look',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              value: _isDarkMode,
+              activeThumbColor: AppColors.primary,
+              onChanged: _toggleDarkMode,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Text(
               'App Theme',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
@@ -72,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: selected ? swatch : AppColors.cardBorder, width: selected ? 2 : 1),
                   boxShadow: [
@@ -109,7 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: Text(option.description),
                       trailing: selected
                           ? Icon(Icons.check_circle, color: swatch)
-                          : const Icon(Icons.radio_button_unchecked, color: AppColors.textSecondary),
+                          : Icon(Icons.radio_button_unchecked, color: AppColors.textSecondary),
                     ),
                   ),
                 ),

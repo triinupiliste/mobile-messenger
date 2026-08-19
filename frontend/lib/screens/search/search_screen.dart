@@ -8,6 +8,7 @@ import '../../services/api_service.dart';
 import '../../services/socket_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/json_utils.dart';
+import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../chat/chat_room_screen.dart';
 
@@ -266,7 +267,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 children: [
                   Text(
                     displayName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -276,7 +277,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   Text(
                     user.email,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -307,14 +308,12 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_searchResults.isEmpty) {
-      return Center(
-        child: Text(
-          _hasSearched
-              ? 'No users found for "${_searchController.text.trim()}"'
-              : 'Enter a username or email to search',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
+      return EmptyState(
+        icon: _hasSearched ? Icons.search_off_rounded : Icons.person_search_rounded,
+        title: _hasSearched
+            ? 'No users found for "${_searchController.text.trim()}"'
+            : 'Find people to chat with',
+        subtitle: _hasSearched ? null : 'Enter a username or email to search',
       );
     }
 
@@ -361,11 +360,11 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.cardBorder),
+                  borderSide: BorderSide(color: AppColors.cardBorder),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.cardBorder),
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.cardBorder),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),

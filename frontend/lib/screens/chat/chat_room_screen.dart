@@ -16,6 +16,7 @@ import '../../services/push_notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/typing_indicator_bubble.dart';
+import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 import '../home/home_screen.dart';
 
@@ -564,13 +565,13 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
             const SizedBox(height: 16),
             Text(username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(email, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(email, style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 (aboutMe == null || aboutMe.isEmpty) ? 'No bio yet.' : aboutMe,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: TextStyle(color: AppColors.textPrimary),
               ),
             ),
           ],
@@ -669,7 +670,11 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                 isLoadingHistory
                     ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                     : messages.isEmpty
-                        ? const Center(child: Text('Say hello and start the conversation!', style: TextStyle(color: AppColors.textSecondary)))
+                        ? const EmptyState(
+                            icon: Icons.waving_hand_rounded,
+                            title: 'No messages yet',
+                            subtitle: 'Say hello and start the conversation!',
+                          )
                         : ScrollablePositionedList.builder(
                             itemScrollController: _itemScrollController,
                             itemPositionsListener: _itemPositionsListener,
@@ -726,7 +731,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                     right: 0,
                     child: Center(
                       child: Material(
-                        color: Colors.white,
+                        color: AppColors.surface,
                         elevation: 3,
                         borderRadius: BorderRadius.circular(20),
                         child: InkWell(
@@ -777,7 +782,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
               margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.cardBorder),
                 boxShadow: [
@@ -811,7 +816,7 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
                           _replyPreviewText(_replyingTo!),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
@@ -827,10 +832,10 @@ class _ChatRoomViewState extends State<_ChatRoomView> {
           // Message Input Bar
           Container(
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
               boxShadow: [
-                BoxShadow(color: AppColors.floatingBarShadow, blurRadius: 12, offset: Offset(0, -2)),
+                BoxShadow(color: AppColors.floatingBarShadow, blurRadius: 12, offset: const Offset(0, -2)),
               ],
             ),
             child: SafeArea(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../screens/media/full_screen_media_viewer.dart';
 import '../../services/api_service.dart';
 import '../../services/audio_service.dart';
@@ -192,12 +194,18 @@ class _MessageBubbleState extends State<MessageBubble> {
           onTap: () => _openFullScreen(context),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              ApiService.mediaUrl(widget.mediaUrl!),
+            child: CachedNetworkImage(
+              imageUrl: ApiService.mediaUrl(widget.mediaUrl!),
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+              fadeInDuration: const Duration(milliseconds: 200),
+              placeholder: (context, url) => Shimmer.fromColors(
+                baseColor: AppColors.cardBorder,
+                highlightColor: AppColors.background,
+                child: Container(height: 150, width: double.infinity, color: Colors.white),
+              ),
+              errorWidget: (context, url, error) => Container(
                 height: 150,
                 width: double.infinity,
                 color: Colors.black12,
@@ -257,7 +265,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                           ],
                         )
                       : null,
-                  color: isMe ? null : Colors.white,
+                  color: isMe ? null : AppColors.surface,
                   border: isMe ? null : Border.all(color: AppColors.cardBorder),
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(18),

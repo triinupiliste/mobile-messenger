@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -27,22 +29,58 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasUrl = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final size = radius * 2;
 
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: hasUrl ? AppColors.primary.withValues(alpha: 0.1) : AppColors.primary,
-      backgroundImage: hasUrl ? NetworkImage(ApiService.mediaUrl(avatarUrl!)) : null,
-      child: hasUrl
-          ? null
-          : Text(
-              _initial,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: radius * 0.7,
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.darken(AppColors.primary)],
+        ),
+        boxShadow: [
+          BoxShadow(color: AppColors.primary.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: ClipOval(
+        child: hasUrl
+            ? CachedNetworkImage(
+                imageUrl: ApiService.mediaUrl(avatarUrl!),
+                fit: BoxFit.cover,
+                fadeInDuration: const Duration(milliseconds: 200),
+                placeholder: (context, url) => Shimmer.fromColors(
+                  baseColor: AppColors.cardBorder,
+                  highlightColor: AppColors.background,
+                  child: Container(color: Colors.white),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: AppColors.primary,
+                  alignment: Alignment.center,
+                  child: Text(
+                    _initial,
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: radius * 0.7),
+                  ),
+                ),
+              )
+            : Container(
+                color: AppColors.surface,
+                alignment: Alignment.center,
+                child: Text(
+                  _initial,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: radius * 0.7,
+                  ),
+                ),
               ),
-            ),
+      ),
     );
   }
 }
+
 

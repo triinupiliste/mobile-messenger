@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/auth/auth_header.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -49,68 +50,77 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Forgot Password')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(Icons.lock_reset_rounded, size: 72, color: AppColors.primary),
-                const SizedBox(height: 16),
-                const Text(
-                  'Reset your password',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Enter the email linked to your account and we'll send you a link to reset your password.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 32),
-                if (_requestSent)
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AuthHeader(
+                    icon: Icons.lock_reset_rounded,
+                    title: 'Reset your password',
+                    subtitle: "Enter the email linked to your account and we'll send you a link to reset your password.",
+                  ),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      border: Border.all(color: Colors.green.shade200),
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(color: AppColors.softShadow, blurRadius: 20, offset: const Offset(0, 8)),
+                      ],
                     ),
-                    child: Text(
-                      _errorMessage ?? 'If an account with that email exists, a password reset link has been sent.',
-                      style: TextStyle(color: Colors.green.shade700),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_requestSent)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              border: Border.all(color: Colors.green.shade200),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _errorMessage ?? 'If an account with that email exists, a password reset link has been sent.',
+                              style: TextStyle(color: Colors.green.shade700),
+                            ),
+                          ),
+                        TextFormField(
+                          controller: _emailController,
+                          enabled: !_requestSent,
+                          decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) => value == null || value.isEmpty ? 'Please enter your email' : null,
+                        ),
+                        const SizedBox(height: 24),
+                        if (!_requestSent)
+                          ElevatedButton(
+                            onPressed: _isLoading ? null : _submit,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text('Send Reset Link', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ),
+                      ],
                     ),
                   ),
-                TextFormField(
-                  controller: _emailController,
-                  enabled: !_requestSent,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) => value == null || value.isEmpty ? 'Please enter your email' : null,
-                ),
-                const SizedBox(height: 24),
-                if (!_requestSent)
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _submit,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Send Reset Link', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Back to Login', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
                   ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Back to Login', style: TextStyle(color: AppColors.primary)),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -241,7 +241,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               ),
             if (_isEditing) ...[
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Supports JPEG & PNG (Max 5MB)',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
@@ -348,9 +348,9 @@ class _ProfileField extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(label, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 16, color: AppColors.textPrimary)),
+                Text(value, style: TextStyle(fontSize: 16, color: AppColors.textPrimary)),
               ],
             ),
           ),

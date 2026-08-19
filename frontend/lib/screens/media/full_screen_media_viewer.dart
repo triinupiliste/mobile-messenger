@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import '../../services/api_service.dart';
 import '../../services/media_save_service.dart';
@@ -67,18 +68,21 @@ class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
                 : InteractiveViewer(
                     minScale: 1,
                     maxScale: 4,
-                    child: Image.network(
-                      ApiService.mediaUrl(widget.mediaUrl),
+                    child: CachedNetworkImage(
+                      imageUrl: ApiService.mediaUrl(widget.mediaUrl),
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
+                      fadeInDuration: const Duration(milliseconds: 200),
+                      errorWidget: (context, url, error) => const Icon(
                         Icons.broken_image,
                         color: Colors.white54,
                         size: 64,
                       ),
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return const CircularProgressIndicator(color: Colors.white);
-                      },
+                      progressIndicatorBuilder: (context, url, progress) => Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          value: progress.progress,
+                        ),
+                      ),
                     ),
                   ),
           ),

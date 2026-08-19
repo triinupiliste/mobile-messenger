@@ -1,13 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme {
+  // Renamed from the old `lightTheme` getter now that it adapts to
+  // AppColors.isDark (toggled from Settings) instead of always being light —
+  // callers just read `AppTheme.theme` and get whichever mode is active.
+  static ThemeData get theme {
+    final brightness = AppColors.isDark ? Brightness.dark : Brightness.light;
+    final baseTextTheme = (AppColors.isDark ? ThemeData.dark() : ThemeData.light()).textTheme;
+    // A rounder, more distinctive font than the default system typeface
+    // (Roboto/San Francisco) — this alone goes a long way toward making the
+    // app feel designed rather than default.
+    final textTheme = GoogleFonts.manropeTextTheme(baseTextTheme).apply(
+      bodyColor: AppColors.textPrimary,
+      displayColor: AppColors.textPrimary,
+    );
+
     return ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       splashFactory: InkRipple.splashFactory,
+      fontFamily: GoogleFonts.manrope().fontFamily,
+      textTheme: textTheme,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
+        brightness: brightness,
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.surface,
@@ -22,7 +40,7 @@ class AppTheme {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         centerTitle: true,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: GoogleFonts.manrope(
           color: Colors.white,
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -32,7 +50,7 @@ class AppTheme {
 
       cardTheme: CardThemeData(
         elevation: 0,
-        color: Colors.white,
+        color: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
@@ -73,7 +91,7 @@ class AppTheme {
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFF3F2F7),
+        fillColor: AppColors.isDark ? AppColors.surface : const Color(0xFFF3F2F7),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -91,28 +109,44 @@ class AppTheme {
 
       popupMenuTheme: PopupMenuThemeData(
         elevation: 8,
-        color: Colors.white,
+        color: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
 
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Colors.white,
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+
+      dialogTheme: DialogThemeData(
+        elevation: 8,
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titleTextStyle: GoogleFonts.manrope(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+        contentTextStyle: GoogleFonts.manrope(
+          fontSize: 14,
+          color: AppColors.textSecondary,
         ),
       ),
 
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.textPrimary,
-        contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+        contentTextStyle: TextStyle(color: AppColors.background, fontSize: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
 
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         elevation: 0,
         height: 68,
         indicatorColor: AppColors.primary.withValues(alpha: 0.14),
@@ -131,7 +165,7 @@ class AppTheme {
         }),
       ),
 
-      dividerTheme: const DividerThemeData(color: AppColors.cardBorder, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(color: AppColors.cardBorder, thickness: 1, space: 1),
     );
   }
 }

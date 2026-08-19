@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/invite_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 
 class InvitesScreen extends StatefulWidget {
@@ -89,9 +90,10 @@ class InvitesScreenState extends State<InvitesScreen> {
                 children: [
                   // Incoming Tab
                   incoming.isEmpty
-                      ? const Center(
-                          child: Text('No incoming invitations',
-                              style: TextStyle(color: AppColors.textSecondary)))
+                      ? const EmptyState(
+                          icon: Icons.mail_outline_rounded,
+                          title: 'No incoming invitations',
+                        )
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: incoming.length,
@@ -112,11 +114,11 @@ class InvitesScreenState extends State<InvitesScreen> {
                                   displayName: sender['username']?.toString() ?? '',
                                 ),
                                 title: Text(sender['username'] ?? 'User',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.textPrimary)),
                                 subtitle: Text(sender['email'] ?? '',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         color: AppColors.textSecondary)),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -143,9 +145,10 @@ class InvitesScreenState extends State<InvitesScreen> {
                         ),
                   // Outgoing Tab
                   outgoing.isEmpty
-                      ? const Center(
-                          child: Text('No outgoing invitations',
-                              style: TextStyle(color: AppColors.textSecondary)))
+                      ? const EmptyState(
+                          icon: Icons.send_outlined,
+                          title: 'No outgoing invitations',
+                        )
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: outgoing.length,
@@ -166,11 +169,11 @@ class InvitesScreenState extends State<InvitesScreen> {
                                   displayName: recipient['username']?.toString() ?? '',
                                 ),
                                 title: Text(recipient['username'] ?? 'User',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.textPrimary)),
                                 subtitle: Text(recipient['email'] ?? '',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         color: AppColors.textSecondary)),
                                 trailing: Chip(
                                   label: Text(

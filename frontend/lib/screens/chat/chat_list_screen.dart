@@ -4,6 +4,7 @@ import '../../providers/chat_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/json_utils.dart';
+import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/user_avatar.dart';
 import 'chat_room_screen.dart';
 
@@ -80,12 +81,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
           }).toList();
 
           if (filteredChats.isEmpty) {
-            return Center(
-              child: Text(
-                _showArchived ? 'No archived chats' : 'No conversations yet.\nSearch for contacts to start chatting!',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
-              ),
+            return EmptyState(
+              icon: _showArchived ? Icons.archive_outlined : Icons.chat_bubble_outline_rounded,
+              title: _showArchived ? 'No archived chats' : 'No conversations yet',
+              subtitle: _showArchived ? null : 'Search for contacts to start chatting!',
             );
           }
 
@@ -172,12 +171,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: AppColors.cardBorder),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
+                        color: AppColors.softShadow,
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -188,7 +187,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       avatarUrl: chat.contactAvatar,
                       displayName: contactName,
                     ),
-                    title: Text(contactName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    title: Text(contactName, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                     subtitle: Text(
                       previewText,
                       maxLines: 1,
@@ -230,7 +229,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             ),
                           ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+                        Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
                       ],
                     ),
                     onTap: () async {
