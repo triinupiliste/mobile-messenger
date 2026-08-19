@@ -7,7 +7,7 @@ import { getIO } from '../sockets/socket.instance';
 export class ChatController {
     static async getChatList(req: Request, res: Response): Promise<void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const chats = await ChatRepository.getChatListForUser(userId);
             res.status(200).json(chats);
         } catch (error) {
@@ -17,7 +17,7 @@ export class ChatController {
 
     static async toggleArchiveChat(req: Request, res: Response): Promise<string | void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const chatId = req.params.chatId as string;
             const { isArchived } = req.body;
 
@@ -30,7 +30,7 @@ export class ChatController {
 
     static async toggleMuteChat(req: Request, res: Response): Promise<string | void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const chatId = req.params.chatId as string;
             const { isMuted } = req.body;
 
@@ -43,7 +43,7 @@ export class ChatController {
 
     static async toggleDeleteChat(req: Request, res: Response): Promise<string | void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const chatId = req.params.chatId as string;
             const { isDeleted } = req.body;
 
@@ -58,7 +58,7 @@ export class ChatController {
     // manual delete) keeps history intact in case they reconnect later.
     static async removeFriend(req: Request, res: Response): Promise<string | void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const chatId = req.params.chatId as string;
 
             const otherParticipants = await ChatRepository.getOtherParticipantsForPush(chatId, userId);
@@ -82,7 +82,7 @@ export class ChatController {
 
     static async getChatMessages(req: Request, res: Response): Promise<string | void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const chatId = req.params.chatId as string;
             const messages = await MessageRepository.getMessagesForChat(chatId, userId);
             res.status(200).json(messages);
@@ -93,7 +93,7 @@ export class ChatController {
 
     static async markMessagesRead(req: Request, res: Response): Promise<void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const chatId = req.params.chatId as string;
             await MessageRepository.markChatMessagesRead(chatId, userId);
 

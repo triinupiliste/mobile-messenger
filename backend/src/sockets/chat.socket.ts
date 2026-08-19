@@ -6,6 +6,7 @@ import { UserRepository } from '../repositories/user.repository';
 import { PushService } from '../services/push.service';
 import { JWT_SECRET } from '../config/env';
 import { hasValidSessionVersion } from '../utils/session.util';
+import { logger } from '../utils/logger.util';
 
 function buildMessagePreview(content: string | null | undefined, mediaType: string): string {
     switch (mediaType) {
@@ -51,7 +52,7 @@ export function registerChatHandlers(io: Server) {
 
     io.on('connection', (socket: Socket) => {
         const userId = socket.data.user.userId;
-        console.log(`User connected via WebSocket: ${userId}`);
+        logger.info(`User connected via WebSocket: ${userId}`);
 
         // Join a personal room for direct notifications (e.g., invites)
         socket.join(userId);
@@ -65,7 +66,7 @@ export function registerChatHandlers(io: Server) {
                 return;
             }
             socket.join(chatId);
-            console.log(`User ${userId} joined chat room: ${chatId}`);
+            logger.info(`User ${userId} joined chat room: ${chatId}`);
         });
 
         socket.on('send_message', async (data: { chatId: string; content?: string; mediaUrl?: string; mediaType?: any; tempId?: string; replyToId?: string }) => {
@@ -112,7 +113,7 @@ export function registerChatHandlers(io: Server) {
                         });
                     }
                 } catch (pushError) {
-                    console.error('Failed to send message push notification:', pushError);
+                    logger.error('Failed to send message push notification:', pushError);
                 }
             } catch (error) {
                 // Echo tempId back so the sender can mark that message failed immediately,
@@ -130,7 +131,7 @@ export function registerChatHandlers(io: Server) {
                 await MessageRepository.updateMessageStatus(data.messageId, data.status);
                 io.to(data.chatId).emit('message_status_updated', { messageId: data.messageId, status: data.status });
             } catch (error) {
-                console.error('Failed to update message status:', error);
+                logger.error('Failed to update message status:', error);
             }
         });
 
@@ -161,7 +162,7 @@ export function registerChatHandlers(io: Server) {
         });
 
         socket.on('disconnect', () => {
-            console.log(`User disconnected: ${userId}`);
+            logger.info(`User disconnected: ${userId}`);
         });
     });
 }

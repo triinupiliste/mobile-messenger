@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { ENCRYPTION_KEY } from '../config/env';
+import { logger } from './logger.util';
 
 const IV_LENGTH = 16; // AES block size
 
@@ -17,7 +18,7 @@ export function decryptText(text: string): string {
     if (parts.length !== 2) {
         // Reaching here means the value never went through encryptText() (e.g.
         // legacy/manually-inserted data) — log it so accidental plaintext writes are visible.
-        console.warn('decryptText: value is not in the expected iv:ciphertext format, returning as-is.');
+        logger.warn('decryptText: value is not in the expected iv:ciphertext format, returning as-is.');
         return text;
     }
     const iv = Buffer.from(parts[0], 'hex');

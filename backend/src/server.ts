@@ -16,6 +16,7 @@ import { registerChatHandlers } from './sockets/chat.socket';
 import { setIO } from './sockets/socket.instance';
 import { runMigrations } from './config/migrate';
 import { ALLOWED_ORIGINS } from './config/env';
+import { logger } from './utils/logger.util';
 
 dotenv.config();
 
@@ -58,12 +59,12 @@ const PORT = process.env.PORT || 5000;
 // deploys on managed hosts (e.g. Railway) that start with no tables.
 runMigrations()
     .catch((err) => {
-        console.error('Failed to run database migrations:', err);
+        logger.error('Failed to run database migrations:', err);
         process.exit(1);
     })
     .then(() => {
         server.listen(Number(PORT), '0.0.0.0', () => {
-            console.log(`Backend server running on port ${PORT}`);
+            logger.info(`Backend server running on port ${PORT}`);
         });
     });
 

@@ -4,11 +4,12 @@ import { ChatRepository } from '../repositories/chat.repository';
 import { InviteRepository } from '../repositories/invite.repository';
 import { isValidEmail } from '../utils/validator.util';
 import { getIO } from '../sockets/socket.instance';
+import { logger } from '../utils/logger.util';
 
 export class UserController {
     static async getProfile(req: Request, res: Response): Promise<void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const profile = await UserRepository.getProfile(userId);
             if (!profile) {
                 res.status(404).json({ error: 'Profile not found.' });
@@ -22,7 +23,7 @@ export class UserController {
 
     static async updateProfile(req: Request, res: Response): Promise<void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const { avatar_url, about_me, username, email } = req.body;
 
             let normalizedUsername: string | undefined;
@@ -111,7 +112,7 @@ export class UserController {
 
     static async searchUsers(req: Request, res: Response): Promise<void> {
         try {
-            const tokenUser = (req as any).user;
+            const tokenUser = req.user;
             const currentUserId = tokenUser?.userId;
             const searchTerm = req.query.q as string;
 
@@ -128,7 +129,7 @@ export class UserController {
             const users = await UserRepository.searchUsers(searchTerm, currentUserId);
             res.status(200).json(users);
         } catch (error) {
-            console.error('Search error:', error);
+            logger.error('Search error:', error);
             res.status(500).json({ error: 'Failed to search users.' });
         }
     }
@@ -136,7 +137,7 @@ export class UserController {
     // Lets the backend push notifications (new messages, invites) to this device.
     static async updateFcmToken(req: Request, res: Response): Promise<void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const { fcmToken } = req.body;
 
             if (!fcmToken || typeof fcmToken !== 'string') {

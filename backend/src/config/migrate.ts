@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { logger } from '../utils/logger.util';
 import pool from './database';
 import { encryptText, hashForLookup } from '../utils/encryption.util';
 
@@ -8,13 +9,13 @@ import { encryptText, hashForLookup } from '../utils/encryption.util';
 export async function runMigrations(): Promise<void> {
     const { rows } = await pool.query("SELECT to_regclass('public.users') AS exists");
     if (rows[0]?.exists) {
-        console.log('Database schema already initialized, skipping migration.');
+        logger.info('Database schema already initialized, skipping migration.');
     } else {
-        console.log('No existing schema found — running init.sql to create tables...');
+        logger.info('No existing schema found — running init.sql to create tables...');
         const initSqlPath = path.join(__dirname, '../../database/init.sql');
         const initSql = fs.readFileSync(initSqlPath, 'utf-8');
         await pool.query(initSql);
-        console.log('Database schema created successfully.');
+        logger.info('Database schema created successfully.');
     }
 
     await ensureEmailEncryption();
@@ -37,7 +38,7 @@ async function ensureEmailEncryption(): Promise<void> {
         ]);
     }
     if (rows.length > 0) {
-        console.log(`Encrypted ${rows.length} plaintext user email(s) at rest.`);
+        logger.info(`Encrypted ${rows.length} plaintext user email(s) at rest.`);
     }
 }
 

@@ -4,6 +4,7 @@ import path from 'path';
 import { UPLOAD_DIR, generateStoredFilename } from '../middleware/upload.middleware';
 import { encryptBuffer, decryptBuffer } from '../utils/encryption.util';
 import { compressVideo } from '../utils/video.util';
+import { logger } from '../utils/logger.util';
 import { MAX_MEDIA_SIZE_BYTES } from '../config/constants';
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp']);
@@ -51,7 +52,7 @@ export class MediaController {
             } catch (error) {
                 // Fall back to the original file rather than failing the send — the size
                 // check below still guards against anything too large.
-                console.error('Video compression failed, storing original file instead:', error);
+                logger.error('Video compression failed, storing original file instead:', error);
                 buffer = file.buffer;
             }
         }

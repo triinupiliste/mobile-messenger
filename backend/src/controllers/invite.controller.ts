@@ -4,11 +4,12 @@ import { ChatRepository } from '../repositories/chat.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { PushService } from '../services/push.service';
 import { getIO } from '../sockets/socket.instance';
+import { logger } from '../utils/logger.util';
 
 export class InviteController {
     static async sendInvite(req: Request, res: Response): Promise<void> {
         try {
-            const senderId = (req as any).user.userId;
+            const senderId = req.user!.userId;
             const { receiverId } = req.body;
 
             if (typeof receiverId !== 'string' || !receiverId.trim()) {
@@ -54,7 +55,7 @@ export class InviteController {
                     });
                 }
             } catch (pushError) {
-                console.error('Failed to send invite push notification:', pushError);
+                logger.error('Failed to send invite push notification:', pushError);
             }
         } catch (error) {
             res.status(500).json({ error: 'Failed to send chat invite.' });
@@ -63,7 +64,7 @@ export class InviteController {
 
     static async getPendingInvites(req: Request, res: Response): Promise<void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const [incoming, outgoing] = await Promise.all([
                 InviteRepository.getPendingInvitesForUser(userId),
                 InviteRepository.getOutgoingInvitesForUser(userId),
@@ -76,7 +77,7 @@ export class InviteController {
 
     static async respondToInvite(req: Request, res: Response): Promise<void> {
         try {
-            const userId = (req as any).user.userId;
+            const userId = req.user!.userId;
             const { inviteId, status } = req.body; // status: 'accepted' or 'declined'
 
             if (!['accepted', 'declined'].includes(status)) {

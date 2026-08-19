@@ -3,6 +3,24 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env';
 import { hasValidSessionVersion } from '../utils/session.util';
 
+// Decoded JWT payload attached to the request by verifyToken/verifyMediaToken.
+export interface AuthenticatedUser {
+    userId: string;
+    email: string;
+    sv?: number;
+}
+
+// Augments Express's own Request type so any handler behind verifyToken/
+// verifyMediaToken can read req.user without an `as any` cast. Optional
+// because it's only actually present once those middlewares run.
+declare global {
+    namespace Express {
+        interface Request {
+            user?: AuthenticatedUser;
+        }
+    }
+}
+
 // Recognized by the Flutter app's AuthProvider/ApiService to force a local
 // logout instead of showing a generic "session expired" error.
 const SESSION_INVALIDATED_RESPONSE = {
@@ -29,7 +47,7 @@ export function verifyToken(req: Request, res: Response, next: NextFunction): vo
                 res.status(401).json(SESSION_INVALIDATED_RESPONSE);
                 return;
             }
-            (req as any).user = decoded;
+            req.user = decoded;
             next();
         }).catch(() => {
             res.status(500).json({ error: 'Internal server error during authentication.' });
@@ -60,7 +78,7 @@ export function verifyMediaToken(req: Request, res: Response, next: NextFunction
                 res.status(401).json(SESSION_INVALIDATED_RESPONSE);
                 return;
             }
-            (req as any).user = decoded;
+            req.user = decoded;
             next();
         }).catch(() => {
             res.status(500).json({ error: 'Internal server error during authentication.' });
