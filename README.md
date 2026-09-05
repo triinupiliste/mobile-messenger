@@ -37,7 +37,7 @@ Users can create accounts, verify their email addresses, search for and invite c
 
 ## Quick Start Guide for Reviewers
 
-**[📥 Download Latest APK](https://gitea.kood.tech/triinupiliste/mobile-messenger/releases/download/v1.0.0/app-release.apk)**
+**[📥 Download Latest APK](https://github.com/triinupiliste/mobile-messenger/releases/download/v1.0.0/app-release.apk)**
 
 The supplied `app-release.apk` is built to use the hosted Railway backend:
 
